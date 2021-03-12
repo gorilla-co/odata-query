@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "odata-query"
+version = "0.1.0"
+description = "An OData query parser and transpiler."
+authors = ["Oliver Hofkens <oliver@gorilla.co>"]
+readme = "README.md"
+license = "MIT"
+keywords = ["OData", "Query", "Parser"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: SQL",
+    "Topic :: Database",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Software Development :: Compilers"
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+sly = "^0.4"
+django = { version = ">=2.2", optional = true }
+black = { version = "==20.8b1", optional = true }
+bump2version = { version = "^1.0", optional = true }
+flake8 = { version = "^3.8", optional = true }
+isort = { version = "^5.7", optional = true }
+mypy = { version = "^0.800", optional = true }
+pytest = { version = "^6.2", optional = true }
+pytest-cov = { version = "*", optional = true }
+vulture = { version = "^2.3", optional = true }
+python-dateutil = "^2.8.1"
+
+[tool.poetry.extras]
+django = ["django"]
+dev = ["bump2version"]
+linting = ["flake8", "black", "isort", "mypy", "yamllint", "vulture"]
+testing = ["pytest", "pytest-cov", "Faker", "moto"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
