@@ -72,6 +72,7 @@ class AstToAthenaSqlVisitor(visitor.NodeVisitor):
 
     def visit_Duration(self, node: ast.Duration) -> str:
         sign, days, hours, minutes, seconds = node.unpack()
+        millis: Optional[str]
 
         if seconds:
             if "." in seconds:

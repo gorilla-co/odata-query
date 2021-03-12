@@ -8,7 +8,7 @@ from dateutil.parser import isoparse
 from django.db.models import Exists, F, Q, Subquery, Value, functions
 from django.db.models.expressions import Expression
 
-from odata_query import ast, exceptions, typing, utils, visitor
+from odata_query import ast, exceptions as ex, typing, utils, visitor
 
 log = logging.getLogger(__name__)
 
@@ -66,19 +66,19 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         try:
             return Value(dt.date.fromisoformat(node.val))
         except ValueError:
-            raise exceptions.ValueException(node.val)
+            raise ex.ValueException(node.val)
 
     def visit_DateTime(self, node: ast.DateTime) -> Value:
         try:
             return Value(isoparse(node.val))
         except ValueError:
-            raise exceptions.ValueException(node.val)
+            raise ex.ValueException(node.val)
 
     def visit_Time(self, node: ast.Time) -> Value:
         try:
             return Value(dt.time.fromisoformat(node.val))
         except ValueError:
-            raise exceptions.ValueException(node.val)
+            raise ex.ValueException(node.val)
 
     def visit_Duration(self, node: ast.Duration) -> Value:
         sign, days, hours, minutes, seconds = node.unpack()
@@ -146,13 +146,16 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
     def visit_Compare(self, node: ast.Compare) -> Q:
         # Special case: comparison to NULL => isnull=True/False
         if isinstance(node.right, ast.Null):
-            q_keyword = self._attempt_keywordify(node.left) + "__isnull"
+            lhs = self._attempt_keywordify(node.left)
+            if not lhs:
+                raise ex.NoIdentifierInComparisonException()
+            q_keyword = lhs + "__isnull"
             if isinstance(node.comparator, ast.Eq):
                 return Q(**{q_keyword: Value(True)})
             elif isinstance(node.comparator, ast.NotEq):
                 return Q(**{q_keyword: Value(False)})
             else:
-                raise exceptions.InvalidComparisonException()
+                raise ex.InvalidComparisonException()
 
         # Need an identifier on any side to make a Django Q:
         keyword = self._attempt_keywordify(node.left)
@@ -164,7 +167,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
                 node = self._flip_comparison(node)
             else:
                 # No keywords at all, cannot continue:
-                raise exceptions.NoIdentifierInComparisonException
+                raise ex.NoIdentifierInComparisonException
 
         q_keyword = keyword + self.visit(node.comparator)
         query = Q(**{q_keyword: self.visit(node.right)})
@@ -182,7 +185,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         right = self.visit(node.right)
 
         if isinstance(left, (F, Value)) or isinstance(right, (F, Value)):
-            raise exceptions.InvalidBoolOperandException()
+            raise ex.InvalidBoolOperandException()
 
         op = self.visit(node.op)
 
@@ -198,13 +201,13 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         try:
             return mod(val)
         except TypeError:
-            raise exceptions.InvalidUnaryOperandException()
+            raise ex.InvalidUnaryOperandException()
 
     def visit_Call(self, node: ast.Call) -> Q:
         try:
             q_gen = getattr(self, "djangofunc_" + node.func.name.lower())
         except AttributeError:
-            raise exceptions.UnsupportedFunctionException(
+            raise ex.UnsupportedFunctionException(
                 f"We do not support the function '{node.func.name}' yet."
             )
 
@@ -216,7 +219,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
         owner_path = self._attempt_keywordify(node.owner)
         if not owner_path:
-            raise exceptions.NoIdentifierInComparisonException()
+            raise ex.NoIdentifierInComparisonException()
 
         if node.lambda_:
             # For the lambda, we want to strip the identifier off, because
@@ -271,7 +274,10 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         )
 
     def djangofunc_matchespattern(self, field: ast._Node, pattern: ast._Node) -> Q:
-        q_keyword = self._attempt_keywordify(field) + "__regex"
+        lhs = self._attempt_keywordify(field)
+        if not lhs:
+            raise ex.ArgumentTypeException()
+        q_keyword = lhs + "__regex"
         pattern = self.visit(pattern)
 
         return Q(**{q_keyword: pattern})
@@ -327,7 +333,10 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         self._typecheck(field, (ast.Identifier, ast.String), "field")
         self._typecheck(substr, ast.String, "substring")
 
-        q_keyword = self._attempt_keywordify(field) + "__" + django_func
+        lhs = self._attempt_keywordify(field)
+        if not lhs:
+            raise ex.ArgumentTypeException()
+        q_keyword = lhs + "__" + django_func
         substring = self.visit(substr)
 
         return Q(**{q_keyword: substring})
@@ -380,7 +389,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
     @staticmethod
     def _typecheck(
-        node: ast._Node, expected_type: Union[type, Tuple[type]], field_name: str
+        node: ast._Node, expected_type: Union[Type, Tuple[Type, ...]], field_name: str
     ):
         actual_type = typing.infer_type(node)
         compare = operator.contains if isinstance(expected_type, tuple) else operator.eq
@@ -390,7 +399,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
                 if isinstance(expected_type, tuple)
                 else expected_type.__name__
             )
-            raise exceptions.ArgumentTypeException(
+            raise ex.ArgumentTypeException(
                 f"Expected argument '{field_name}' to be of type {allowed}, got {actual_type.__name__}"
             )
 
