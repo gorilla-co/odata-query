@@ -23,6 +23,16 @@ from odata_query import ast, utils
             ),
             ast.Compare(ast.Eq(), ast.Identifier("name"), ast.String("Jozef")),
         ),
+        (
+            ast.Compare(
+                ast.In(),
+                ast.Attribute(ast.Identifier("id"), "name"),
+                ast.List([ast.String("Jozef")]),
+            ),
+            ast.Compare(
+                ast.In(), ast.Identifier("name"), ast.List([ast.String("Jozef")])
+            ),
+        ),
     ],
 )
 def test_expression_relative_to_identifier(expression, expected):

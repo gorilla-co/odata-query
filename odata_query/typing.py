@@ -1,12 +1,12 @@
 import logging
-from typing import Optional
+from typing import Optional, Type
 
 from . import ast
 
 log = logging.getLogger(__name__)
 
 
-def infer_type(node: ast._Node) -> Optional[type]:
+def infer_type(node: ast._Node) -> Optional[Type[ast._Node]]:
     if isinstance(node, (ast._Literal)):
         return type(node)
 
@@ -20,7 +20,7 @@ def infer_type(node: ast._Node) -> Optional[type]:
     return None
 
 
-def infer_return_type(node: ast.Call) -> Optional[type]:
+def infer_return_type(node: ast.Call) -> Optional[Type[ast._Node]]:
     func = node.func.name
 
     if func in (

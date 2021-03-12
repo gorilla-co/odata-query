@@ -15,10 +15,7 @@ def iter_dataclass_fields(node) -> Iterator[Tuple[str, Any]]:
     that is present on *node*.
     """
     for field in fields(node):
-        try:
-            yield field.name, getattr(node, field.name)
-        except AttributeError:
-            pass
+        yield field.name, getattr(node, field.name)
 
 
 class NodeVisitor:
