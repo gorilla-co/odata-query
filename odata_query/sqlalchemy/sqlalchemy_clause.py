@@ -1,6 +1,6 @@
 import datetime as dt
 import operator
-from typing import Callable, Union
+from typing import Any, Callable, Union
 
 from dateutil.parser import isoparse
 from sqlalchemy.sql.expression import (
@@ -81,6 +81,28 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def visit_List(self, node: ast.List) -> list:
         return [self.visit(n) for n in node.val]
+
+    def visit_Add(self, node: ast.Add) -> Callable[[Any, Any], Any]:
+        return operator.add
+
+    def visit_Sub(self, node: ast.Sub) -> Callable[[Any, Any], Any]:
+        return operator.sub
+
+    def visit_Mult(self, node: ast.Mult) -> Callable[[Any, Any], Any]:
+        return operator.mul
+
+    def visit_Div(self, node: ast.Div) -> Callable[[Any, Any], Any]:
+        return operator.truediv
+
+    def visit_Mod(self, node: ast.Mod) -> Callable[[Any, Any], Any]:
+        return operator.mod
+
+    def visit_BinOp(self, node: ast.BinOp) -> Any:
+        left = self.visit(node.left)
+        right = self.visit(node.right)
+        op = self.visit(node.op)
+
+        return op(left, right)
 
     def visit_Eq(
         self, node: ast.Eq

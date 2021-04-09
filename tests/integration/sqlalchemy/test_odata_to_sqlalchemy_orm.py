@@ -90,6 +90,24 @@ def tz(offset: int) -> dt.tzinfo:
             (column("version_id") == 1)
             & ((column("status") == "executing") | (column("status") == "failed")),
         ),
+        ("version_id eq 1 add 1", column("version_id") == literal(1) + literal(1)),
+        ("version_id eq 2 sub 1", column("version_id") == literal(2) - literal(1)),
+        ("version_id eq 2 mul 2", column("version_id") == literal(2) * literal(2)),
+        ("version_id eq 2 div 2", column("version_id") == literal(2) / literal(2)),
+        ("version_id eq 5 mod 4", column("version_id") == literal(5) % literal(4)),
+        ("version_id eq 2 add -1", column("version_id") == literal(2) + literal(-1)),
+        (
+            "version_id eq n_versions sub 1",
+            column("version_id") == column("n_versions") - literal(1),
+        ),
+        (
+            "name eq 'donut' add 'tello'",
+            column("name") == literal("donut") + literal("tello"),
+        ),
+        (
+            "name eq donut add tello",
+            column("name") == column("donut") + column("tello"),
+        ),
     ],
 )
 def test_odata_filter_to_sqlalchemy_orm_query(
