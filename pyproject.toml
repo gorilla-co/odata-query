@@ -23,8 +23,13 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
+
+python-dateutil = "^2.8.1"
 sly = "^0.4"
+
 django = { version = ">=2.2", optional = true }
+sqlalchemy = { version = "^1.4", optional = true }
+
 black = { version = "==20.8b1", optional = true }
 bump2version = { version = "^1.0", optional = true }
 flake8 = { version = "^3.8", optional = true }
@@ -33,10 +38,10 @@ mypy = { version = "^0.800", optional = true }
 pytest = { version = "^6.2", optional = true }
 pytest-cov = { version = "*", optional = true }
 vulture = { version = "^2.3", optional = true }
-python-dateutil = "^2.8.1"
 
 [tool.poetry.extras]
 django = ["django"]
+sqlalchemy = ["sqlalchemy"]
 dev = ["bump2version"]
 linting = ["flake8", "black", "isort", "mypy", "yamllint", "vulture"]
 testing = ["pytest", "pytest-cov", "Faker", "moto"]
