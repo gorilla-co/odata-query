@@ -2,7 +2,8 @@ import datetime as dt
 
 import pytest
 from sqlalchemy.sql import functions
-from sqlalchemy.sql.expression import column, literal
+from sqlalchemy.sql.expression import cast, column, extract, literal
+from sqlalchemy.types import Date, Time
 
 from odata_query.sqlalchemy import AstToSqlAlchemyClauseVisitor, functions_ext
 
@@ -154,6 +155,21 @@ def tz(offset: int) -> dt.tzinfo:
             "trim(name) eq 'copy'",
             functions_ext.ltrim(functions_ext.rtrim(column("name"))) == "copy",
         ),
+        (
+            "date(created_at) eq 2019-01-01",
+            cast(column("created_at"), Date) == dt.date(2019, 1, 1),
+        ),
+        ("day(created_at) eq 1", extract(column("created_at"), "day") == 1),
+        ("hour(created_at) eq 1", extract(column("created_at"), "hour") == 1),
+        ("minute(created_at) eq 1", extract(column("created_at"), "minute") == 1),
+        ("month(created_at) eq 1", extract(column("created_at"), "month") == 1),
+        ("created_at eq now()", column("created_at") == functions.now()),
+        ("second(created_at) eq 1", extract(column("created_at"), "second") == 1),
+        (
+            "time(created_at) eq 14:00:00",
+            cast(column("created_at"), Time) == dt.time(14, 0, 0),
+        ),
+        ("year(created_at) eq 2019", extract(column("created_at"), "year") == 2019),
     ],
 )
 def test_odata_filter_to_sqlalchemy_query(
