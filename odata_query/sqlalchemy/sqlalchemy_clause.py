@@ -265,6 +265,15 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
     def func_year(self, field: ast._Node) -> functions.Function:
         return extract(self.visit(field), "year")
 
+    def func_ceiling(self, field: ast._Node) -> functions.Function:
+        return functions_ext.ceil(self.visit(field))
+
+    def func_floor(self, field: ast._Node) -> functions.Function:
+        return functions_ext.floor(self.visit(field))
+
+    def func_round(self, field: ast._Node) -> functions.Function:
+        return functions_ext.round(self.visit(field))
+
     def _substr_function(
         self, field: ast._Node, substr: ast._Node, func: str
     ) -> ClauseElement:
