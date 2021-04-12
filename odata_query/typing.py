@@ -1,9 +1,26 @@
 import logging
-from typing import Optional, Type
+import operator
+from typing import Optional, Tuple, Type, Union
 
-from . import ast
+from . import ast, exceptions as ex
 
 log = logging.getLogger(__name__)
+
+
+def typecheck(
+    node: ast._Node, expected_type: Union[Type, Tuple[Type, ...]], field_name: str
+):
+    actual_type = infer_type(node)
+    compare = operator.contains if isinstance(expected_type, tuple) else operator.eq
+    if actual_type and not compare(expected_type, actual_type):
+        allowed = (
+            [t.__name__ for t in expected_type]
+            if isinstance(expected_type, tuple)
+            else expected_type.__name__
+        )
+        raise ex.ArgumentTypeException(
+            f"Expected argument '{field_name}' to be of type {allowed}, got {actual_type.__name__}"
+        )
 
 
 def infer_type(node: ast._Node) -> Optional[Type[ast._Node]]:

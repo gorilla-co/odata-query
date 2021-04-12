@@ -2,7 +2,7 @@ import datetime as dt
 import logging
 import operator
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from dateutil.parser import isoparse
 from django.db.models import Exists, F, Q, Subquery, Value, functions
@@ -266,7 +266,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
     def djangofunc_substring(
         self, fullstr: ast._Node, index: ast._Node, nchars: ast._Node = None
     ) -> functions.Substr:
-        # Add 1 because OData is 0-indexers while SQL is 1-indexed
+        # Add 1 because OData is 0-indexed while SQL is 1-indexed
         return functions.Substr(
             self.visit(fullstr),
             self.visit(index) + 1,
@@ -330,8 +330,8 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
     def _substr_function(
         self, field: ast._Node, substr: ast._Node, django_func: str
     ) -> Q:
-        self._typecheck(field, (ast.Identifier, ast.String), "field")
-        self._typecheck(substr, ast.String, "substring")
+        typing.typecheck(field, (ast.Identifier, ast.String), "field")
+        typing.typecheck(substr, ast.String, "substring")
 
         lhs = self._attempt_keywordify(field)
         if not lhs:
@@ -386,22 +386,6 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
             .replace(":", "_")
             .lower()
         )
-
-    @staticmethod
-    def _typecheck(
-        node: ast._Node, expected_type: Union[Type, Tuple[Type, ...]], field_name: str
-    ):
-        actual_type = typing.infer_type(node)
-        compare = operator.contains if isinstance(expected_type, tuple) else operator.eq
-        if actual_type and not compare(expected_type, actual_type):
-            allowed = (
-                [t.__name__ for t in expected_type]
-                if isinstance(expected_type, tuple)
-                else expected_type.__name__
-            )
-            raise ex.ArgumentTypeException(
-                f"Expected argument '{field_name}' to be of type {allowed}, got {actual_type.__name__}"
-            )
 
     @staticmethod
     def _flip_comparison(comp: ast.Compare) -> ast.Compare:

@@ -1,9 +1,11 @@
 import datetime as dt
 
 import pytest
-from sqlalchemy.sql.expression import column, literal
+from sqlalchemy.sql import functions
+from sqlalchemy.sql.expression import cast, column, extract, literal
+from sqlalchemy.types import Date, Time
 
-from odata_query.sqlalchemy import AstToSqlAlchemyClauseVisitor
+from odata_query.sqlalchemy import AstToSqlAlchemyClauseVisitor, functions_ext
 
 
 def tz(offset: int) -> dt.tzinfo:
@@ -108,9 +110,88 @@ def tz(offset: int) -> dt.tzinfo:
             "name eq donut add tello",
             column("name") == column("donut") + column("tello"),
         ),
+        (
+            "created_at eq 2019-01-01T00:00:00 add duration'P1DT1H1M1S'",
+            column("created_at")
+            == literal(dt.datetime(2019, 1, 1, 0, 0, 0))
+            + dt.timedelta(days=1, hours=1, minutes=1, seconds=1),
+        ),
+        ("contains(name, 'copy')", column("name").contains("copy")),
+        ("startswith(name, 'copy')", column("name").startswith("copy")),
+        ("endswith(name, 'bla')", column("name").endswith("bla")),
+        (
+            "version_id eq length(name)",
+            column("version_id") == functions.char_length(column("name")),
+        ),
+        ("length(name) eq 10", functions.char_length(column("name")) == 10),
+        ("10 eq length(name)", 10 == functions.char_length(column("name"))),
+        (
+            "length(name) eq length('flippot')",
+            functions.char_length(column("name")) == functions.char_length("flippot"),
+        ),
+        ("name eq concat('a', 'b')", column("name") == functions.concat("a", "b")),
+        (
+            "name eq concat('test', version_id)",
+            column("name") == functions.concat("test", column("version_id")),
+        ),
+        (
+            "name eq concat(concat('a', 'b'), 'c')",
+            column("name") == functions.concat(functions.concat("a", "b"), "c"),
+        ),
+        (
+            "concat(name, 'a') eq 'testa'",
+            functions.concat(column("name"), "a") == "testa",
+        ),
+        (
+            "indexof(name, 'Copy') eq 6",
+            functions_ext.strpos(column("name"), "Copy") - 1 == 6,
+        ),
+        (
+            "substring(name, 0) eq 'Copy'",
+            functions_ext.substr(column("name"), literal(0) + 1) == "Copy",
+        ),
+        (
+            "substring(name, 0, 4) eq 'Copy'",
+            functions_ext.substr(column("name"), literal(0) + 1, 4) == "Copy",
+        ),
+        ("matchesPattern(name, 'C.py')", column("name").regexp_match("C.py")),
+        ("tolower(name) eq 'copy'", functions_ext.lower(column("name")) == "copy"),
+        ("toupper(name) eq 'COPY'", functions_ext.upper(column("name")) == "COPY"),
+        (
+            "trim(name) eq 'copy'",
+            functions_ext.ltrim(functions_ext.rtrim(column("name"))) == "copy",
+        ),
+        (
+            "date(created_at) eq 2019-01-01",
+            cast(column("created_at"), Date) == dt.date(2019, 1, 1),
+        ),
+        ("day(created_at) eq 1", extract(column("created_at"), "day") == 1),
+        ("hour(created_at) eq 1", extract(column("created_at"), "hour") == 1),
+        ("minute(created_at) eq 1", extract(column("created_at"), "minute") == 1),
+        ("month(created_at) eq 1", extract(column("created_at"), "month") == 1),
+        ("created_at eq now()", column("created_at") == functions.now()),
+        ("second(created_at) eq 1", extract(column("created_at"), "second") == 1),
+        (
+            "time(created_at) eq 14:00:00",
+            cast(column("created_at"), Time) == dt.time(14, 0, 0),
+        ),
+        ("year(created_at) eq 2019", extract(column("created_at"), "year") == 2019),
+        ("ceiling(result) eq 1", functions_ext.ceil(column("result")) == 1),
+        ("floor(result) eq 1", functions_ext.floor(column("result")) == 1),
+        ("round(result) eq 1", functions_ext.round(column("result")) == 1),
+        (
+            "date(created_at) eq 2019-01-01 add duration'P1D'",
+            cast(column("created_at"), Date)
+            == literal(dt.date(2019, 1, 1)) + dt.timedelta(days=1),
+        ),
+        (
+            "date(created_at) eq 2019-01-01 add duration'-P1D'",
+            cast(column("created_at"), Date)
+            == literal(dt.date(2019, 1, 1)) + -1 * dt.timedelta(days=1),
+        ),
     ],
 )
-def test_odata_filter_to_sqlalchemy_orm_query(
+def test_odata_filter_to_sqlalchemy_query(
     odata_query: str, expected_q: str, lexer, parser
 ):
     ast = parser.parse(lexer.tokenize(odata_query))

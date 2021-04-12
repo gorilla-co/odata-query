@@ -3,6 +3,7 @@ import operator
 from typing import Any, Callable, Union
 
 from dateutil.parser import isoparse
+from sqlalchemy.sql import functions
 from sqlalchemy.sql.expression import (
     BinaryExpression,
     BindParameter,
@@ -13,15 +14,20 @@ from sqlalchemy.sql.expression import (
     Null,
     True_,
     and_,
+    cast,
     column,
+    extract,
     false,
     literal,
     null,
     or_,
     true,
 )
+from sqlalchemy.types import Date, Time
 
-from odata_query import ast, exceptions as ex, visitor
+from odata_query import ast, exceptions as ex, typing, visitor
+
+from . import functions_ext
 
 
 class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
@@ -173,3 +179,109 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
             return mod(val)
         except TypeError:
             raise ex.InvalidUnaryOperandException()
+
+    def visit_Call(self, node: ast.Call) -> ClauseElement:
+        try:
+            handler = getattr(self, "func_" + node.func.name.lower())
+        except AttributeError:
+            raise ex.UnsupportedFunctionException(
+                f"We do not support the function '{node.func.name}' yet."
+            )
+
+        return handler(*node.args)
+
+    def func_contains(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
+        return self._substr_function(field, substr, "contains")
+
+    def func_startswith(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
+        return self._substr_function(field, substr, "startswith")
+
+    def func_endswith(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
+        return self._substr_function(field, substr, "endswith")
+
+    def func_length(self, arg: ast._Node) -> functions.Function:
+        return functions.char_length(self.visit(arg))
+
+    def func_concat(self, *args: ast._Node) -> functions.Function:
+        return functions.concat(*[self.visit(arg) for arg in args])
+
+    def func_indexof(self, first: ast._Node, second: ast._Node) -> functions.Function:
+        # TODO: Highly dialect dependent, might want to implement in GenericFunction:
+        # Subtract 1 because OData is 0-indexed while SQL is 1-indexed
+        return functions_ext.strpos(self.visit(first), self.visit(second)) - 1
+
+    def func_substring(
+        self, fullstr: ast._Node, index: ast._Node, nchars: ast._Node = None
+    ) -> functions.Function:
+        # Add 1 because OData is 0-indexed while SQL is 1-indexed
+        if nchars:
+            return functions_ext.substr(
+                self.visit(fullstr),
+                self.visit(index) + 1,
+                self.visit(nchars),
+            )
+        else:
+            return functions_ext.substr(self.visit(fullstr), self.visit(index) + 1)
+
+    def func_matchespattern(
+        self, field: ast._Node, pattern: ast._Node
+    ) -> functions.Function:
+        identifier = self.visit(field)
+        return identifier.regexp_match(self.visit(pattern))
+
+    def func_tolower(self, field: ast._Node) -> functions.Function:
+        return functions_ext.lower(self.visit(field))
+
+    def func_toupper(self, field: ast._Node) -> functions.Function:
+        return functions_ext.upper(self.visit(field))
+
+    def func_trim(self, field: ast._Node) -> functions.Function:
+        return functions_ext.ltrim(functions_ext.rtrim(self.visit(field)))
+
+    def func_date(self, field: ast._Node) -> ClauseElement:
+        return cast(self.visit(field), Date)
+
+    def func_day(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "day")
+
+    def func_hour(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "hour")
+
+    def func_minute(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "minute")
+
+    def func_month(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "month")
+
+    def func_now(self) -> functions.Function:
+        return functions.now()
+
+    def func_second(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "second")
+
+    def func_time(self, field: ast._Node) -> functions.Function:
+        return cast(self.visit(field), Time)
+
+    def func_year(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "year")
+
+    def func_ceiling(self, field: ast._Node) -> functions.Function:
+        return functions_ext.ceil(self.visit(field))
+
+    def func_floor(self, field: ast._Node) -> functions.Function:
+        return functions_ext.floor(self.visit(field))
+
+    def func_round(self, field: ast._Node) -> functions.Function:
+        return functions_ext.round(self.visit(field))
+
+    def _substr_function(
+        self, field: ast._Node, substr: ast._Node, func: str
+    ) -> ClauseElement:
+        typing.typecheck(field, (ast.Identifier, ast.String), "field")
+        typing.typecheck(substr, ast.String, "substring")
+
+        identifier = self.visit(field)
+        substring = self.visit(substr)
+        op = getattr(identifier, func)
+
+        return op(substring)
