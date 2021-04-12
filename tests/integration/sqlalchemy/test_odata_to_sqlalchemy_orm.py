@@ -170,6 +170,9 @@ def tz(offset: int) -> dt.tzinfo:
             cast(column("created_at"), Time) == dt.time(14, 0, 0),
         ),
         ("year(created_at) eq 2019", extract(column("created_at"), "year") == 2019),
+        ("ceiling(result) eq 1", functions_ext.ceil(column("result")) == 1),
+        ("floor(result) eq 1", functions_ext.floor(column("result")) == 1),
+        ("round(result) eq 1", functions_ext.round(column("result")) == 1),
     ],
 )
 def test_odata_filter_to_sqlalchemy_query(
