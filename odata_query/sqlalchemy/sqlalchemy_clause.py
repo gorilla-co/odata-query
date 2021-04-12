@@ -14,13 +14,16 @@ from sqlalchemy.sql.expression import (
     Null,
     True_,
     and_,
+    cast,
     column,
+    extract,
     false,
     literal,
     null,
     or_,
     true,
 )
+from sqlalchemy.types import Date, Time
 
 from odata_query import ast, exceptions as ex, typing, visitor
 
@@ -234,6 +237,42 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def func_trim(self, field: ast._Node) -> functions.Function:
         return functions_ext.ltrim(functions_ext.rtrim(self.visit(field)))
+
+    def func_date(self, field: ast._Node) -> ClauseElement:
+        return cast(self.visit(field), Date)
+
+    def func_day(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "day")
+
+    def func_hour(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "hour")
+
+    def func_minute(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "minute")
+
+    def func_month(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "month")
+
+    def func_now(self) -> functions.Function:
+        return functions.now()
+
+    def func_second(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "second")
+
+    def func_time(self, field: ast._Node) -> functions.Function:
+        return cast(self.visit(field), Time)
+
+    def func_year(self, field: ast._Node) -> functions.Function:
+        return extract(self.visit(field), "year")
+
+    def func_ceiling(self, field: ast._Node) -> functions.Function:
+        return functions_ext.ceil(self.visit(field))
+
+    def func_floor(self, field: ast._Node) -> functions.Function:
+        return functions_ext.floor(self.visit(field))
+
+    def func_round(self, field: ast._Node) -> functions.Function:
+        return functions_ext.round(self.visit(field))
 
     def _substr_function(
         self, field: ast._Node, substr: ast._Node, func: str

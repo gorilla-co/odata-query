@@ -2,7 +2,8 @@ import datetime as dt
 
 import pytest
 from sqlalchemy.sql import functions
-from sqlalchemy.sql.expression import column, literal
+from sqlalchemy.sql.expression import cast, column, extract, literal
+from sqlalchemy.types import Date, Time
 
 from odata_query.sqlalchemy import AstToSqlAlchemyClauseVisitor, functions_ext
 
@@ -109,6 +110,12 @@ def tz(offset: int) -> dt.tzinfo:
             "name eq donut add tello",
             column("name") == column("donut") + column("tello"),
         ),
+        (
+            "created_at eq 2019-01-01T00:00:00 add duration'P1DT1H1M1S'",
+            column("created_at")
+            == literal(dt.datetime(2019, 1, 1, 0, 0, 0))
+            + dt.timedelta(days=1, hours=1, minutes=1, seconds=1),
+        ),
         ("contains(name, 'copy')", column("name").contains("copy")),
         ("startswith(name, 'copy')", column("name").startswith("copy")),
         ("endswith(name, 'bla')", column("name").endswith("bla")),
@@ -153,6 +160,34 @@ def tz(offset: int) -> dt.tzinfo:
         (
             "trim(name) eq 'copy'",
             functions_ext.ltrim(functions_ext.rtrim(column("name"))) == "copy",
+        ),
+        (
+            "date(created_at) eq 2019-01-01",
+            cast(column("created_at"), Date) == dt.date(2019, 1, 1),
+        ),
+        ("day(created_at) eq 1", extract(column("created_at"), "day") == 1),
+        ("hour(created_at) eq 1", extract(column("created_at"), "hour") == 1),
+        ("minute(created_at) eq 1", extract(column("created_at"), "minute") == 1),
+        ("month(created_at) eq 1", extract(column("created_at"), "month") == 1),
+        ("created_at eq now()", column("created_at") == functions.now()),
+        ("second(created_at) eq 1", extract(column("created_at"), "second") == 1),
+        (
+            "time(created_at) eq 14:00:00",
+            cast(column("created_at"), Time) == dt.time(14, 0, 0),
+        ),
+        ("year(created_at) eq 2019", extract(column("created_at"), "year") == 2019),
+        ("ceiling(result) eq 1", functions_ext.ceil(column("result")) == 1),
+        ("floor(result) eq 1", functions_ext.floor(column("result")) == 1),
+        ("round(result) eq 1", functions_ext.round(column("result")) == 1),
+        (
+            "date(created_at) eq 2019-01-01 add duration'P1D'",
+            cast(column("created_at"), Date)
+            == literal(dt.date(2019, 1, 1)) + dt.timedelta(days=1),
+        ),
+        (
+            "date(created_at) eq 2019-01-01 add duration'-P1D'",
+            cast(column("created_at"), Date)
+            == literal(dt.date(2019, 1, 1)) + -1 * dt.timedelta(days=1),
         ),
     ],
 )

@@ -24,3 +24,15 @@ class ltrim(GenericFunction):
 
 class rtrim(GenericFunction):
     type = String
+
+
+class ceil(GenericFunction):
+    type = Integer
+
+
+class floor(GenericFunction):
+    type = Integer
+
+
+class round(GenericFunction):
+    type = Integer
