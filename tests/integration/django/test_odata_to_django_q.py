@@ -103,6 +103,13 @@ def tz(offset: int) -> dt.tzinfo:
             Q(name__exact=Value("donut") + Value("tello")),
         ),
         ("name eq donut add tello", Q(name__exact=F("donut") + F("tello"))),
+        (
+            "created_at eq 2019-01-01T00:00:00 add duration'P1DT1H1M1S'",
+            Q(
+                created_at__exact=Value(dt.datetime(2019, 1, 1, 0, 0, 0))
+                + Value(dt.timedelta(days=1, hours=1, minutes=1, seconds=1))
+            ),
+        ),
         ("contains(name, 'copy')", Q(name__contains=Value("copy"))),
         ("startswith(name, 'copy')", Q(name__startswith=Value("copy"))),
         ("endswith(name, 'bla')", Q(name__endswith=Value("bla"))),
@@ -170,6 +177,20 @@ def tz(offset: int) -> dt.tzinfo:
         ("ceiling(result) eq 1", Q(result__ceil__exact=Value(1))),
         ("floor(result) eq 1", Q(result__floor__exact=Value(1))),
         ("round(result) eq 1", Q(result__round__exact=Value(1))),
+        (
+            "date(created_at) eq 2019-01-01 add duration'P1D'",
+            Q(
+                created_at__date__exact=Value(dt.date(2019, 1, 1))
+                + Value(dt.timedelta(days=1))
+            ),
+        ),
+        (
+            "date(created_at) eq 2019-01-01 add duration'-P1D'",
+            Q(
+                created_at__date__exact=Value(dt.date(2019, 1, 1))
+                + Value(-1 * dt.timedelta(days=1))
+            ),
+        ),
         ("created_by/name eq 'Ruben'", Q(created_by__name__exact=Value("Ruben"))),
         (
             "created_by/company/name eq 'Gorilla'",
@@ -190,27 +211,6 @@ def tz(offset: int) -> dt.tzinfo:
             )
             & Q(created_by__name__startswith=Value("Ruben"))
             & Q(created_by__id__exact=Value(3)),
-        ),
-        (
-            "date(created_at) eq 2019-01-01 add duration'P1D'",
-            Q(
-                created_at__date__exact=Value(dt.date(2019, 1, 1))
-                + Value(dt.timedelta(days=1))
-            ),
-        ),
-        (
-            "date(created_at) eq 2019-01-01 add duration'-P1D'",
-            Q(
-                created_at__date__exact=Value(dt.date(2019, 1, 1))
-                + Value(-1 * dt.timedelta(days=1))
-            ),
-        ),
-        (
-            "created_at eq 2019-01-01T00:00:00 add duration'P1DT1H1M1S'",
-            Q(
-                created_at__exact=Value(dt.datetime(2019, 1, 1, 0, 0, 0))
-                + Value(dt.timedelta(days=1, hours=1, minutes=1, seconds=1))
-            ),
         ),
         (
             "fields/any(f: f/name eq 'test')",
