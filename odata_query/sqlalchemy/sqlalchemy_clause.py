@@ -26,7 +26,7 @@ from sqlalchemy.sql.expression import (
 )
 from sqlalchemy.types import Date, Time
 
-from odata_query import ast, exceptions as ex, typing, visitor
+from odata_query import ast, exceptions as ex, typing, utils, visitor
 
 from . import functions_ext
 
@@ -209,6 +209,29 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
             )
 
         return handler(*node.args)
+
+    def visit_CollectionLambda(self, node: ast.CollectionLambda):
+        owner_prop = self.visit(node.owner)
+        collection_model = inspect(owner_prop).property.entity.class_
+
+        if node.lambda_:
+            # For the lambda, we want to strip the identifier off, because
+            # we will execute this as a subquery in the wanted model's context.
+            subq_ast = utils.expression_relative_to_identifier(
+                node.lambda_.identifier, node.lambda_.expression
+            )
+            subq_transformer = self.__class__(collection_model)
+            subquery_filter = subq_transformer.visit(subq_ast)
+        else:
+            subquery_filter = None
+
+        if isinstance(node.operator, ast.Any):
+            return owner_prop.any(subquery_filter)
+        else:
+            # For an ALL query, invert both the filter and the EXISTS:
+            if node.lambda_:
+                subquery_filter = ~subquery_filter
+            return ~owner_prop.any(subquery_filter)
 
     def func_contains(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
         return self._substr_function(field, substr, "contains")
