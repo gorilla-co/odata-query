@@ -42,6 +42,8 @@ def sample_data_sess(db_session):
         (Author, "startswith(name, 'Gori')", 1),
         (BlogPost, "contains(content, 'How')", 2),
         (BlogPost, "published_at gt 2019-06-01", 1),
+        (Author, "contains(blogposts/title, 'Monkey')", 2),
+        (Author, "startswith(blogposts/comments/content, 'Cool')", 2),
     ],
 )
 def test_query_with_odata(
@@ -53,9 +55,12 @@ def test_query_with_odata(
     sample_data_sess,
 ):
     ast = parser.parse(lexer.tokenize(query))
-    transformer = AstToSqlAlchemyClauseVisitor()
+    transformer = AstToSqlAlchemyClauseVisitor(model)
     where_clause = transformer.visit(ast)
 
-    q = select(model).filter(where_clause)
+    q = select(model)
+    for j in transformer.join_relationships:
+        q = q.join(j)
+    q = q.filter(where_clause)
     results = sample_data_sess.execute(q).scalars().all()
     assert len(results) == exp_results

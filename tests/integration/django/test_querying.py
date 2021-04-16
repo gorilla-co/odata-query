@@ -51,6 +51,7 @@ def sample_data_sess(django_db):
         (BlogPost, "contains(content, 'How')", 2),
         (BlogPost, "published_at gt 2019-06-01", 1),
         (Author, "contains(blogposts/title, 'Monkey')", 2),
+        (Author, "startswith(blogposts/comments/content, 'Cool')", 2),
     ],
 )
 def test_query_with_odata(

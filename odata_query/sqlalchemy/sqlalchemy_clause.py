@@ -3,6 +3,8 @@ import operator
 from typing import Any, Callable, Union
 
 from dateutil.parser import isoparse
+from sqlalchemy.inspection import inspect
+from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql import functions
 from sqlalchemy.sql.expression import (
     BinaryExpression,
@@ -15,7 +17,6 @@ from sqlalchemy.sql.expression import (
     True_,
     and_,
     cast,
-    column,
     extract,
     false,
     literal,
@@ -31,8 +32,27 @@ from . import functions_ext
 
 
 class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
+    def __init__(self, root_model):
+        self.root_model = root_model
+        self.join_relationships = []
+
     def visit_Identifier(self, node: ast.Identifier) -> ColumnClause:
-        return column(node.name)
+        return getattr(self.root_model, node.name)
+
+    def visit_Attribute(self, node: ast.Attribute) -> ColumnClause:
+        rel_attr = self.visit(node.owner)
+        # Owner is an InstrumentedAttribute, hopefully of a relationship.
+        # But we need the model pointed to by the relationship.
+        prop_inspect = inspect(rel_attr).property
+        if not isinstance(prop_inspect, RelationshipProperty):
+            # TODO: new exception:
+            raise ValueError(f"Not a relationship: {node.owner}")
+
+        self.join_relationships.append(rel_attr)
+
+        # We'd like to reference the column on the related class:
+        owner_cls = prop_inspect.entity.class_
+        return getattr(owner_cls, node.attr)
 
     def visit_Null(self, node: ast.Null) -> Null:
         return null()
