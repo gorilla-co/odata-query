@@ -1,4 +1,5 @@
 import datetime as dt
+import uuid
 
 import pytest
 from django.db.models import Exists, F, Q, Value, functions
@@ -16,7 +17,16 @@ def tz(offset: int) -> dt.tzinfo:
     [
         (
             "id eq a7af27e6-f5a0-11e9-9649-0a252986adba",
-            Q(id__exact=Value("a7af27e6-f5a0-11e9-9649-0a252986adba")),
+            Q(id__exact=uuid.UUID("a7af27e6-f5a0-11e9-9649-0a252986adba")),
+        ),
+        (
+            "id in (a7af27e6-f5a0-11e9-9649-0a252986adba, 800c56e4-354d-11eb-be38-3af9d323e83c)",
+            Q(
+                id__in=[
+                    uuid.UUID("a7af27e6-f5a0-11e9-9649-0a252986adba"),
+                    uuid.UUID("800c56e4-354d-11eb-be38-3af9d323e83c"),
+                ]
+            ),
         ),
         ("id eq 4", Q(id__exact=Value(4))),
         ("id ne 4", Q(id__ne=Value(4))),
@@ -277,7 +287,7 @@ def test_odata_filter_to_django_q(odata_query: str, expected_q: str, lexer, pars
         (
             "data_type/id eq a7af27e6-f5a0-11e9-9649-0a252986adba",
             Q(
-                data_type_version__id__exact=Value(
+                data_type_version__id__exact=uuid.UUID(
                     "a7af27e6-f5a0-11e9-9649-0a252986adba"
                 )
             ),

@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import operator
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Type
 
@@ -93,7 +94,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         return Value(td)
 
     def visit_GUID(self, node: ast.GUID) -> Value:
-        return Value(node.val)
+        return uuid.UUID(node.val)
 
     def visit_List(self, node: ast.List) -> List:
         return [self.visit(n) for n in node.val]
