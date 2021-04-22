@@ -48,15 +48,16 @@ def sample_data_sess(db_session):
         (BlogPost, "authors/any(a: contains(a/name, 'o'))", 2),
         (BlogPost, "authors/all(a: contains(a/name, 'o'))", 1),
         (Author, "blogposts/comments/any(c: contains(c/content, 'Cool'))", 2),
+        (Author, "id eq a7af27e6-f5a0-11e9-9649-0a252986adba", 0),
+        (
+            Author,
+            "id in (a7af27e6-f5a0-11e9-9649-0a252986adba, 800c56e4-354d-11eb-be38-3af9d323e83c)",
+            0,
+        ),
     ],
 )
 def test_query_with_odata(
-    model: Type[Base],
-    query: str,
-    exp_results: int,
-    lexer,
-    parser,
-    sample_data_sess,
+    model: Type[Base], query: str, exp_results: int, lexer, parser, sample_data_sess
 ):
     ast = parser.parse(lexer.tokenize(query))
     transformer = AstToSqlAlchemyClauseVisitor(model)

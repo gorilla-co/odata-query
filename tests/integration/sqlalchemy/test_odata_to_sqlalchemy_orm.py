@@ -21,6 +21,15 @@ def tz(offset: int) -> dt.tzinfo:
             "id eq a7af27e6-f5a0-11e9-9649-0a252986adba",
             BlogPost.id == "a7af27e6-f5a0-11e9-9649-0a252986adba",
         ),
+        (
+            "id in (a7af27e6-f5a0-11e9-9649-0a252986adba, 800c56e4-354d-11eb-be38-3af9d323e83c)",
+            BlogPost.id.in_(
+                [
+                    literal("a7af27e6-f5a0-11e9-9649-0a252986adba"),
+                    literal("800c56e4-354d-11eb-be38-3af9d323e83c"),
+                ]
+            ),
+        ),
         ("id eq 4", BlogPost.id == 4),
         ("id ne 4", BlogPost.id != 4),
         ("4 eq id", 4 == BlogPost.id),
@@ -74,17 +83,11 @@ def tz(offset: int) -> dt.tzinfo:
             "published_at gt 2018-01-01T01:02-02:00",
             BlogPost.published_at > dt.datetime(2018, 1, 1, 1, 2, tzinfo=tz(-2)),
         ),
-        (
-            "id in (1, 2, 3)",
-            BlogPost.id.in_([literal(1), literal(2), literal(3)]),
-        ),
+        ("id in (1, 2, 3)", BlogPost.id.in_([literal(1), literal(2), literal(3)])),
         ("id eq null", BlogPost.id == None),  # noqa:E711
         ("id ne null", BlogPost.id != None),  # noqa:E711
         ("not (id eq 1)", ~(BlogPost.id == 1)),
-        (
-            "id eq 1 or id eq 2",
-            (BlogPost.id == 1) | (BlogPost.id == 2),
-        ),
+        ("id eq 1 or id eq 2", (BlogPost.id == 1) | (BlogPost.id == 2)),
         (
             "id eq 1 and content eq 'executing'",
             (BlogPost.id == 1) & (BlogPost.content == "executing"),
@@ -100,10 +103,7 @@ def tz(offset: int) -> dt.tzinfo:
         ("id eq 2 div 2", BlogPost.id == literal(2) / literal(2)),
         ("id eq 5 mod 4", BlogPost.id == literal(5) % literal(4)),
         ("id eq 2 add -1", BlogPost.id == literal(2) + literal(-1)),
-        (
-            "id eq id sub 1",
-            BlogPost.id == BlogPost.id - literal(1),
-        ),
+        ("id eq id sub 1", BlogPost.id == BlogPost.id - literal(1)),
         (
             "title eq 'donut' add 'tello'",
             BlogPost.title == literal("donut") + literal("tello"),
@@ -121,10 +121,7 @@ def tz(offset: int) -> dt.tzinfo:
         ("contains(title, 'copy')", BlogPost.title.contains("copy")),
         ("startswith(title, 'copy')", BlogPost.title.startswith("copy")),
         ("endswith(title, 'bla')", BlogPost.title.endswith("bla")),
-        (
-            "id eq length(title)",
-            BlogPost.id == functions.char_length(BlogPost.title),
-        ),
+        ("id eq length(title)", BlogPost.id == functions.char_length(BlogPost.title)),
         ("length(title) eq 10", functions.char_length(BlogPost.title) == 10),
         ("10 eq length(title)", 10 == functions.char_length(BlogPost.title)),
         (
@@ -192,14 +189,8 @@ def tz(offset: int) -> dt.tzinfo:
             == literal(dt.date(2019, 1, 1)) + -1 * dt.timedelta(days=1),
         ),
         ("authors/name eq 'Ruben'", Author.name == "Ruben"),
-        (
-            "authors/comments/content eq 'Cool!'",
-            Comment.content == "Cool!",
-        ),
-        (
-            "contains(comments/content, 'Cool')",
-            Comment.content.contains("Cool"),
-        ),
+        ("authors/comments/content eq 'Cool!'", Comment.content == "Cool!"),
+        ("contains(comments/content, 'Cool')", Comment.content.contains("Cool")),
     ],
 )
 def test_odata_filter_to_sqlalchemy_query(
