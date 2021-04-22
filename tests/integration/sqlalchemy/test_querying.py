@@ -44,6 +44,10 @@ def sample_data_sess(db_session):
         (BlogPost, "published_at gt 2019-06-01", 1),
         (Author, "contains(blogposts/title, 'Monkey')", 2),
         (Author, "startswith(blogposts/comments/content, 'Cool')", 2),
+        (Author, "comments/any()", 2),
+        (BlogPost, "authors/any(a: contains(a/name, 'o'))", 2),
+        (BlogPost, "authors/all(a: contains(a/name, 'o'))", 1),
+        (Author, "blogposts/comments/any(c: contains(c/content, 'Cool'))", 2),
         (Author, "id eq a7af27e6-f5a0-11e9-9649-0a252986adba", 0),
         (
             Author,
