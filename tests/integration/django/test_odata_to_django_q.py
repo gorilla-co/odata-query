@@ -82,8 +82,8 @@ def tz(offset: int) -> dt.tzinfo:
             "id in (1, 2, 3)",
             Q(id__in=[Value(1), Value(2), Value(3)]),
         ),
-        ("id eq null", Q(id__isnull=Value(True))),
-        ("id ne null", Q(id__isnull=Value(False))),
+        ("id eq null", Q(id__isnull=True)),
+        ("id ne null", Q(id__isnull=False)),
         ("not (id eq 1)", ~Q(id__exact=Value(1))),
         (
             "id eq 1 or id eq 2",
@@ -252,6 +252,14 @@ def tz(offset: int) -> dt.tzinfo:
         (
             "model/fields/any(f: f/title eq 'test')",
             Q(SubQueryToken("model__fields", Q(title__exact=Value("test")), Exists)),
+        ),
+        (
+            "model/fields/any(f: f/name eq null)",
+            Q(SubQueryToken("model__fields", Q(name__isnull=True), Exists)),
+        ),
+        (
+            "model/fields/any(f: f/name ne null)",
+            Q(SubQueryToken("model__fields", Q(name__isnull=False), Exists)),
         ),
     ],
 )

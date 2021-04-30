@@ -74,3 +74,33 @@ def test_query_with_odata(
 
     results = model.objects.filter(where_clause).all()
     assert len(results) == exp_results
+
+
+@pytest.mark.parametrize(
+    "odata_query, expected_sql",
+    [
+        (
+            "author eq null",
+            (
+                'SELECT DISTINCT "django_comment"."id", "django_comment"."content", "django_comment"."author_id", "django_comment"."blogpost_id" '
+                'FROM "django_comment" '
+                'WHERE "django_comment"."author_id" IS NULL'
+            ),
+        ),
+        (
+            "author ne null",
+            (
+                'SELECT DISTINCT "django_comment"."id", "django_comment"."content", "django_comment"."author_id", "django_comment"."blogpost_id" '
+                'FROM "django_comment" '
+                'WHERE "django_comment"."author_id" IS NOT NULL'
+            ),
+        ),
+    ],
+)
+def test_odata_filter_to_sql_query(odata_query: str, expected_sql: str, lexer, parser):
+    ast = parser.parse(lexer.tokenize(odata_query))
+    transformer = AstToDjangoQVisitor()
+    res_q = transformer.visit(ast)
+    queryset = Comment.objects.filter(res_q).distinct()
+    sql = str(queryset.query)
+    assert sql == expected_sql
