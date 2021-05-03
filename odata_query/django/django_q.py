@@ -146,15 +146,17 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
     def visit_Compare(self, node: ast.Compare) -> Q:
         # Special case: comparison to NULL => isnull=True/False
+        # Should not be wrapped with Value(True/False)
+        # See: https://github.com/django/django/blob/0aacbdcf27b258387643b033352e99e6103abda8/django/db/models/lookups.py#L515
         if isinstance(node.right, ast.Null):
             lhs = self._attempt_keywordify(node.left)
             if not lhs:
                 raise ex.NoIdentifierInComparisonException()
             q_keyword = lhs + "__isnull"
             if isinstance(node.comparator, ast.Eq):
-                return Q(**{q_keyword: Value(True)})
+                return Q(**{q_keyword: True})
             elif isinstance(node.comparator, ast.NotEq):
-                return Q(**{q_keyword: Value(False)})
+                return Q(**{q_keyword: False})
             else:
                 raise ex.InvalidComparisonException()
 
