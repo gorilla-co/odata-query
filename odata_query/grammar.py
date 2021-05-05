@@ -282,6 +282,7 @@ class ODataLexer(Lexer):
 
 
 class ODataParser(Parser):
+    debugfile = None
     tokens = ODataLexer.tokens
 
     # Predecence from low to high.
@@ -297,8 +298,6 @@ class ODataParser(Parser):
         ("right", NOT, UMINUS),
         ("left", IN),
     )
-
-    debugfile = "parser.out"
 
     def error(self, tok):
         eof = tok is None
