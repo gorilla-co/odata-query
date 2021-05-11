@@ -1,9 +1,11 @@
 import datetime as dt
 import operator
-from typing import Any, Callable, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from dateutil.parser import isoparse
 from sqlalchemy.inspection import inspect
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.decl_api import DeclarativeMeta
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql import functions
 from sqlalchemy.sql.expression import (
@@ -32,9 +34,14 @@ from . import functions_ext
 
 
 class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
-    def __init__(self, root_model):
+    def __init__(
+        self,
+        root_model: Type[DeclarativeMeta],
+        field_mapping: Optional[Dict[str, str]] = None,
+    ):
         self.root_model = root_model
-        self.join_relationships = []
+        self.field_mapping = field_mapping or {}
+        self.join_relationships: List[InstrumentedAttribute] = []
 
     def visit_Identifier(self, node: ast.Identifier) -> ColumnClause:
         return getattr(self.root_model, node.name)
@@ -47,7 +54,6 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
         if not isinstance(prop_inspect, RelationshipProperty):
             # TODO: new exception:
             raise ValueError(f"Not a relationship: {node.owner}")
-
         self.join_relationships.append(rel_attr)
 
         # We'd like to reference the column on the related class:

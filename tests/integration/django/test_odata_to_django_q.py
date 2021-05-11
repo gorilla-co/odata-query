@@ -2,10 +2,12 @@ import datetime as dt
 import uuid
 
 import pytest
-from django.db.models import Exists, F, Q, Value, functions
+from django.db.models import F, Q, Value, functions
 
 from odata_query import exceptions
-from odata_query.django import AstToDjangoQVisitor, SubQueryToken
+from odata_query.django import AstToDjangoQVisitor
+
+from .models import BlogPost
 
 
 def tz(offset: int) -> dt.tzinfo:
@@ -224,48 +226,11 @@ def tz(offset: int) -> dt.tzinfo:
             & Q(created_by__title__startswith=Value("Ruben"))
             & Q(created_by__id__exact=Value(3)),
         ),
-        (
-            "fields/any(f: f/title eq 'test')",
-            Q(SubQueryToken("fields", Q(title__exact=Value("test")), Exists)),
-        ),
-        (
-            "fields/any(f: f/title eq 'test' and f/value eq 'foo')",
-            Q(
-                SubQueryToken(
-                    "fields",
-                    Q(title__exact=Value("test")) & Q(value__exact=Value("foo")),
-                    Exists,
-                )
-            ),
-        ),
-        (
-            "fields/all(f: f/title eq 'test')",
-            Q(
-                SubQueryToken(
-                    "fields",
-                    ~Q(title__exact=Value("test")),
-                    Exists,
-                    dict(negated=True),
-                )
-            ),
-        ),
-        (
-            "model/fields/any(f: f/title eq 'test')",
-            Q(SubQueryToken("model__fields", Q(title__exact=Value("test")), Exists)),
-        ),
-        (
-            "model/fields/any(f: f/name eq null)",
-            Q(SubQueryToken("model__fields", Q(name__isnull=True), Exists)),
-        ),
-        (
-            "model/fields/any(f: f/name ne null)",
-            Q(SubQueryToken("model__fields", Q(name__isnull=False), Exists)),
-        ),
     ],
 )
 def test_odata_filter_to_django_q(odata_query: str, expected_q: str, lexer, parser):
     ast = parser.parse(lexer.tokenize(odata_query))
-    transformer = AstToDjangoQVisitor()
+    transformer = AstToDjangoQVisitor(BlogPost)
     res_q = transformer.visit(ast)
 
     assert res_q == expected_q
@@ -327,7 +292,7 @@ def test_odata_filter_to_django_q_with_field_mapping(
     odata_query: str, expected_q: str, field_mapping: dict, lexer, parser
 ):
     ast = parser.parse(lexer.tokenize(odata_query))
-    transformer = AstToDjangoQVisitor(field_mapping)
+    transformer = AstToDjangoQVisitor(BlogPost, field_mapping)
     res_q = transformer.visit(ast)
 
     assert res_q == expected_q
@@ -343,5 +308,5 @@ def test_odata_filter_to_django_q_with_field_mapping(
 def test_exceptions(odata_query: str, expected_exception: type, parser, lexer):
     with pytest.raises(expected_exception):
         ast = parser.parse(lexer.tokenize(odata_query))
-        transformer = AstToDjangoQVisitor(None)
+        transformer = AstToDjangoQVisitor(BlogPost)
         transformer.visit(ast)
