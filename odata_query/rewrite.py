@@ -6,6 +6,20 @@ from .visitor import NodeTransformer
 
 
 class AliasRewriter(NodeTransformer):
+    """
+    A :class:`NodeTransformer` that replaces aliases in the :term:`AST` with their
+    aliased identifiers or attributes.
+
+    Args:
+        field_aliases: A mapping of aliases to their full name. These can
+            be identifiers, attributes, and even function calls in odata
+            syntax.
+        lexer: Optional lexer instance to use. If not passed, will construct
+            the default one.
+        parser: Optional parser instance to use. If not passed, will construct
+            the default one.
+    """
+
     def __init__(
         self, field_aliases: Dict[ast._Node, ast._Node], lexer=None, parser=None
     ):
@@ -22,21 +36,38 @@ class AliasRewriter(NodeTransformer):
         }
 
     def visit_Identifier(self, node: ast.Identifier) -> ast._Node:
+        """
+        :meta private:
+        """
         if node in self.replacements:
             return self.replacements[node]
         return node
 
     def visit_Attribute(self, node: ast.Attribute) -> ast._Node:
+        """
+        :meta private:
+        """
         if node in self.replacements:
             return self.replacements[node]
         return node
 
 
 class IdentifierStripper(NodeTransformer):
+    """
+    A :class:`NodeTransformer` that strips the given identifier off of
+    attributes. E.g. ``author/name`` -> ``name``.
+
+    Args:
+        strip: The identifier to strip off of all attributes in the :term:`AST`
+    """
+
     def __init__(self, strip: ast.Identifier):
         self.strip = strip
 
     def visit_Attribute(self, node: ast.Attribute) -> ast._Node:
+        """
+        :meta private:
+        """
         if node.owner == self.strip:
             return ast.Identifier(node.attr)
         elif isinstance(node.owner, ast.Attribute):

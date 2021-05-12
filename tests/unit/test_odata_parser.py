@@ -363,11 +363,11 @@ def test_common_expr(expression: str, expected_ast):
 @pytest.mark.parametrize(
     "func_call, expected_exception",
     [
-        ("doesnotexist()", exceptions.ODataSyntaxException),
-        ("now ()", exceptions.SyntaxError),
-        ("now('abc')", exceptions.ODataSyntaxException),
-        ("substring('abc')", exceptions.ODataSyntaxException),
-        ("substring('abc', 'def', 'ghi', 'jkl')", exceptions.ODataSyntaxException),
+        ("doesnotexist()", exceptions.UnknownFunctionException),
+        ("now ()", exceptions.ParsingException),
+        ("now('abc')", exceptions.ArgumentCountException),
+        ("substring('abc')", exceptions.ArgumentCountException),
+        ("substring('abc', 'def', 'ghi', 'jkl')", exceptions.ArgumentCountException),
     ],
 )
 def test_bad_function_calls(func_call: str, expected_exception):
