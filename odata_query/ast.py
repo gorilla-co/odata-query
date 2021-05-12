@@ -78,7 +78,10 @@ class Duration(_Literal):
     ) -> Tuple[
         Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]
     ]:
-        """Returns (sign, days, hours, minutes, seconds)"""
+        """
+        Returns:
+            ``(sign, days, hours, minutes, seconds)``
+        """
 
         match = DURATION_PATTERN.fullmatch(self.val)
         if not match:

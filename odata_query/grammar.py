@@ -1,8 +1,8 @@
 # type: ignore
 """
-Subset of OData formal grammar
-
-@see https://docs.oasis-open.org/odata/odata/v4.01/csprd06/abnf/odata-abnf-construction-rules.txt
+Implementation of a subset of the
+`OData formal grammar <https://docs.oasis-open.org/odata/odata/v4.01/csprd06/abnf/odata-abnf-construction-rules.txt>`_ .
+Implemented with `SLY <https://sly.readthedocs.io/en/latest/>`_.
 """
 
 from typing import List
@@ -94,8 +94,16 @@ class ODataLexer(Lexer):
     }
     literals = {"(", ")", ",", "/", ":"}
 
-    def error(self, text: str):
-        raise exceptions.SyntaxError(text)
+    def error(self, token):
+        """
+        Error handler during tokenization
+
+        Args:
+            token: The token that failed to tokenize.
+        Raises:
+            TokenizingException
+        """
+        raise exceptions.TokenizingException(text)
 
     # NOTE: Ordering of tokens is important! Longer tokens preferably first
 
@@ -105,6 +113,7 @@ class ODataLexer(Lexer):
 
     @_(r"(?i)duration'[+-]?P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?'")
     def DURATION(self, t):
+        ":meta private:"
         val = t.value.upper()
 
         # Strip the prefix and single quotes:
@@ -115,10 +124,10 @@ class ODataLexer(Lexer):
 
     @_(r"'(?:[^']|'')*'")
     def STRING(self, t):
-        """
-        Strings are single-quoted. To represent a single quote within a string,
-        double it.
-        """
+        ":meta private:"
+        # Strings are single-quoted. To represent a single quote within a string,
+        # double it!
+
         # Strip only the first and last single quote:
         val = t.value[1:-1]
         # Replace double single-quotes with a single quote:
@@ -129,42 +138,49 @@ class ODataLexer(Lexer):
 
     @_(r"(?i)[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}")
     def GUID(self, t):
+        ":meta private:"
         t.value = ast.GUID(t.value)
         return t
 
-    # regexr.com/4sbfs
     @_(_DATE + r"T" + _TIME + r"?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?")
     def DATETIME(self, t):
+        ":meta private:"
         t.value = ast.DateTime(t.value)
         return t
 
     @_(_DATE)
     def DATE(self, t):
+        ":meta private:"
         t.value = ast.Date(t.value)
         return t
 
     @_(_TIME)
     def TIME(self, t):
+        ":meta private:"
         t.value = ast.Time(t.value)
         return t
 
     @_(_INTEGER + r"((?:(?:\.\d+)(?:e[-+]?\d+))|(?:\.\d+)|(?:e[-+]?\d+))")
     def DECIMAL(self, t):
+        ":meta private:"
         t.value = ast.Float(t.value)
         return t
 
     @_(_INTEGER)
     def INTEGER(self, t):
+        ":meta private:"
         t.value = ast.Integer(t.value)
         return t
 
     @_(r"true|false")
     def BOOLEAN(self, t):
+        ":meta private:"
         t.value = ast.Boolean(t.value)
         return t
 
     @_(r"null")
     def NULL(self, t):
+        ":meta private:"
         t.value = ast.Null()
         return t
 
@@ -173,31 +189,37 @@ class ODataLexer(Lexer):
     ####################################################################################
     @_(fr"(?i){_RWS}add{_RWS}")
     def ADD(self, t):
+        ":meta private:"
         t.value = ast.Add()
         return t
 
     @_(fr"(?i){_RWS}sub{_RWS}")
     def SUB(self, t):
+        ":meta private:"
         t.value = ast.Sub()
         return t
 
     @_(fr"(?i){_RWS}mul{_RWS}")
     def MUL(self, t):
+        ":meta private:"
         t.value = ast.Mult()
         return t
 
     @_(fr"(?i){_RWS}div{_RWS}")
     def DIV(self, t):
+        ":meta private:"
         t.value = ast.Div()
         return t
 
     @_(fr"(?i){_RWS}mod{_RWS}")
     def MOD(self, t):
+        ":meta private:"
         t.value = ast.Mod()
         return t
 
     @_(r"-")
     def UMINUS(self, t):
+        ":meta private:"
         t.value = ast.USub()
         return t
 
@@ -206,16 +228,19 @@ class ODataLexer(Lexer):
     ####################################################################################
     @_(fr"(?i){_RWS}and{_RWS}")
     def AND(self, t):
+        ":meta private:"
         t.value = ast.And()
         return t
 
     @_(fr"(?i){_RWS}or{_RWS}")
     def OR(self, t):
+        ":meta private:"
         t.value = ast.Or()
         return t
 
     @_(fr"(?i)not{_RWS}")
     def NOT(self, t):
+        ":meta private:"
         t.value = ast.Not()
         return t
 
@@ -224,36 +249,43 @@ class ODataLexer(Lexer):
     ####################################################################################
     @_(fr"(?i){_RWS}eq{_RWS}")
     def EQ(self, t):
+        ":meta private:"
         t.value = ast.Eq()
         return t
 
     @_(fr"(?i){_RWS}ne{_RWS}")
     def NE(self, t):
+        ":meta private:"
         t.value = ast.NotEq()
         return t
 
     @_(fr"(?i){_RWS}lt{_RWS}")
     def LT(self, t):
+        ":meta private:"
         t.value = ast.Lt()
         return t
 
     @_(fr"(?i){_RWS}le{_RWS}")
     def LE(self, t):
+        ":meta private:"
         t.value = ast.LtE()
         return t
 
     @_(fr"(?i){_RWS}gt{_RWS}")
     def GT(self, t):
+        ":meta private:"
         t.value = ast.Gt()
         return t
 
     @_(fr"(?i){_RWS}ge{_RWS}")
     def GE(self, t):
+        ":meta private:"
         t.value = ast.GtE()
         return t
 
     @_(fr"(?i){_RWS}in{_RWS}")
     def IN(self, t):
+        ":meta private:"
         t.value = ast.In()
         return t
 
@@ -262,11 +294,13 @@ class ODataLexer(Lexer):
     ####################################################################################
     @_(r"(?i)any")
     def ANY(self, t):
+        ":meta private:"
         t.value = ast.Any()
         return t
 
     @_(r"(?i)all")
     def ALL(self, t):
+        ":meta private:"
         t.value = ast.All()
         return t
 
@@ -275,6 +309,7 @@ class ODataLexer(Lexer):
     ####################################################################################
     @_(r"(?i)[_a-z]\w{0,127}")
     def ODATA_IDENTIFIER(self, t):
+        ":meta private:"
         t.value = ast.Identifier(t.value)
         return t
 
@@ -299,16 +334,26 @@ class ODataParser(Parser):
         ("left", IN),
     )
 
-    def error(self, tok):
-        eof = tok is None
-        raise exceptions.SyntaxError(tok, eof)
+    def error(self, token):
+        """
+        Error handler during parsing.
+
+        Args:
+            token: The token at which point parsing failed.
+        Raises:
+            ParsingFailedException
+        """
+        eof = token is None
+        raise exceptions.ParsingException(token, eof)
 
     @_('"(" BWS common_expr BWS ")"')
     def common_expr(self, p):
+        ":meta private:"
         return p.common_expr
 
     @_("primitive_literal", "first_member_expr", "list_expr")
     def common_expr(self, p):
+        ":meta private:"
         return p[0]
 
     ####################################################################################
@@ -327,29 +372,32 @@ class ODataParser(Parser):
         "DURATION",
     )
     def primitive_literal(self, p):
+        ":meta private:"
         return p[0]
 
     @_('common_expr BWS "," BWS common_expr')
     def list_items(self, p):
+        ":meta private:"
         return [p[0], p[4]]
 
     @_('list_items BWS "," BWS common_expr')
     def list_items(self, p):
+        ":meta private:"
         p.list_items.append(p.common_expr)
         return p.list_items
 
     @_('"(" BWS common_expr BWS "," BWS ")"')
     def list_expr(self, p):
-        """
-        NOTE: This is NOT according to the OData standard ABNF.
-        The standard says a single item list is (x), but that collides with the parenExpr
-        rule, e.g.: concat(('a'), ('b')) could mean concat of lists or concat of str expressions.
-        Therefore we follow Python syntax: a single item list has a comma at the end.
-        """
+        ":meta private:"
+        # NOTE: This is NOT according to the OData standard ABNF.
+        # The standard says a single item list is (x), but that collides with the parenExpr
+        # rule, e.g.: concat(('a'), ('b')) could mean concat of lists or concat of str expressions.
+        # Therefore we follow Python syntax: a single item list has a comma at the end.
         return ast.List([p.common_expr])
 
     @_('"(" BWS list_items BWS ")"')
     def list_expr(self, p):
+        ":meta private:"
         return ast.List(p.list_items)
 
     ####################################################################################
@@ -362,18 +410,22 @@ class ODataParser(Parser):
 
     @_("member_expr")
     def first_member_expr(self, p):
+        ":meta private:"
         return p.member_expr
 
     @_("property_path_expr")
     def member_expr(self, p):
+        ":meta private:"
         return p[0]
 
     @_("entity_navigation_property")
     def property_path_expr(self, p):
+        ":meta private:"
         return p.entity_navigation_property
 
     @_("entity_navigation_property single_navigation_expr")
     def property_path_expr(self, p):
+        ":meta private:"
         if isinstance(p[1], ast.Attribute):
             # We want to nest attributes in the opposite direction of parsing, e.g.:
             # we prefer Attribute(Attribute(Id(A), 'created_by'), 'name')
@@ -392,18 +444,22 @@ class ODataParser(Parser):
 
     @_("ODATA_IDENTIFIER")
     def entity_navigation_property(self, p):
+        ":meta private:"
         return p[0]
 
     @_("'/' member_expr")
     def single_navigation_expr(self, p):
+        ":meta private:"
         return p.member_expr
 
     @_("'/' any_expr", "'/' all_expr")
     def collection_path_expr(self, p):
+        ":meta private:"
         return p[1]
 
     @_("entity_navigation_property collection_path_expr")
     def property_path_expr(self, p):
+        ":meta private:"
         return ast.CollectionLambda(p[0], *p[1])
 
     ####################################################################################
@@ -411,18 +467,22 @@ class ODataParser(Parser):
     ####################################################################################
     @_('ODATA_IDENTIFIER BWS ":" BWS common_expr')
     def lambda_(self, p):
+        ":meta private:"
         return ast.Lambda(p[0], p.common_expr)
 
     @_('ANY "(" BWS lambda_ BWS ")"')
     def any_expr(self, p):
+        ":meta private:"
         return (p[0], p.lambda_)
 
     @_('ANY "(" BWS ")"')
     def any_expr(self, p):
+        ":meta private:"
         return (p[0], None)
 
     @_('ALL "(" BWS lambda_ BWS ")"')
     def all_expr(self, p):
+        ":meta private:"
         return (p[0], p.lambda_)
 
     ####################################################################################
@@ -430,6 +490,7 @@ class ODataParser(Parser):
     ####################################################################################
     @_("UMINUS BWS common_expr")
     def common_expr(self, p):
+        ":meta private:"
         return ast.UnaryOp(p[0], p[2])
 
     @_(
@@ -440,6 +501,7 @@ class ODataParser(Parser):
         "common_expr MOD common_expr",
     )
     def common_expr(self, p):
+        ":meta private:"
         return ast.BinOp(p[1], p[0], p[2])
 
     ####################################################################################
@@ -455,6 +517,7 @@ class ODataParser(Parser):
         "common_expr IN list_expr",
     )
     def common_expr(self, p):
+        ":meta private:"
         return ast.Compare(p[1], p[0], p[2])
 
     ####################################################################################
@@ -462,52 +525,55 @@ class ODataParser(Parser):
     ####################################################################################
     @_("common_expr AND common_expr", "common_expr OR common_expr")
     def common_expr(self, p):
+        ":meta private:"
         return ast.BoolOp(p[1], p[0], p[2])
 
     @_("NOT common_expr")
     def common_expr(self, p):
+        ":meta private:"
         return ast.UnaryOp(p[0], p.common_expr)
 
     ####################################################################################
     # Function calls
     ####################################################################################
     def _function_call(self, func: ast.Identifier, args: List[ast._Node]):
+        ":meta private:"
         func_name = func.name
         try:
             n_args_exp = ODATA_FUNCTIONS[func_name]
         except KeyError:
-            raise exceptions.ODataSyntaxException(f"Unknown function '{func_name}'")
+            raise exceptions.UnknownFunctionException(func_name)
 
         n_args_given = len(args)
         if isinstance(n_args_exp, int) and n_args_given != n_args_exp:
-            raise exceptions.ODataSyntaxException(
-                f"Function '{func_name}' takes {n_args_exp} arguments, "
-                f"{n_args_given} given"
+            raise exceptions.ArgumentCountException(
+                func_name, n_args_exp, n_args_exp, n_args_given
             )
 
         if isinstance(n_args_exp, tuple) and (
             n_args_given < n_args_exp[0] or n_args_given > n_args_exp[1]
         ):
-            raise exceptions.ODataSyntaxException(
-                f"Function '{func_name}' takes between "
-                f"{n_args_exp[0]} and {n_args_exp[1]} arguments, "
-                f"{n_args_given} given"
+            raise exceptions.ArgumentCountException(
+                func_name, n_args_exp[0], n_args_exp[1], n_args_given
             )
 
         return ast.Call(func, args)
 
     @_('ODATA_IDENTIFIER "(" ")"')
     def common_expr(self, p):
+        ":meta private:"
         args = []
         return self._function_call(p[0], args)
 
     @_('ODATA_IDENTIFIER "(" BWS common_expr BWS ")"')
     def common_expr(self, p):
+        ":meta private:"
         args = [p.common_expr]
         return self._function_call(p[0], args)
 
     @_("ODATA_IDENTIFIER list_expr")
     def common_expr(self, p):
+        ":meta private:"
         args = p[1].val
         return self._function_call(p[0], args)
 
@@ -516,16 +582,25 @@ class ODataParser(Parser):
     ####################################################################################
     @_("")
     def empty(self, p):
+        ":meta private:"
         pass
 
-    # "Bad Whitespace"
     @_("WS")
     def BWS(self, p):
+        """
+        'Bad Whitespace'
+
+        :meta private:
+        """
         pass
 
-    # "Bad Whitespace"
     @_("empty")
     def BWS(self, p):
+        """
+        'Bad Whitespace'
+
+        :meta private:
+        """
         pass
 
     ####################################################################################
@@ -534,8 +609,14 @@ class ODataParser(Parser):
     def _reverse_attributes(self, attr: ast.Attribute) -> ast.Attribute:
         """
         Transforms an attribute like:
-        Attribute(Id(A), Attribute(..., 'name'))   into
-        Attribute(Attribute(Id(A), ...), 'name')
+        ``Attribute(Id(A), Attribute(..., 'name'))``
+        into
+        ``Attribute(Attribute(Id(A), ...), 'name')``
+
+        Args:
+            attr: The :class:`Attribute` to reverse.
+        Returns:
+            The transformed attribute.
         """
         exploded = self._explode_attr(attr)
         leaf_attr = exploded.pop()
@@ -548,8 +629,14 @@ class ODataParser(Parser):
     def _explode_attr(self, attr: ast.Attribute) -> List[str]:
         """
         Splits a (possibly nested) attribute into a list of all elements, e.g.:
-        Attribute(Id(A), Attribute(Id(B), 'name'))   into
-        A, B, name
+        ``Attribute(Id(A), Attribute(Id(B), 'name'))``
+        into
+        ``[A, B, name]``
+
+        Args:
+            attr: The :class:`Attribute` to split.
+        Returns:
+            A list of all identifiers in the ``attr``
         """
         if isinstance(attr.owner, ast.Identifier):
             exploded = [attr.owner.name]

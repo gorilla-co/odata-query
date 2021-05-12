@@ -1,18 +1,16 @@
-"""
-NodeVisitor based on cpython/ast.py:
-Copyright 2008 by Armin Ronacher, Python License.
-https://github.com/python/cpython/blob/master/Lib/ast.py
-"""
 from dataclasses import fields
 from typing import Any, Iterator, Tuple
 
 from . import ast
 
 
-def iter_dataclass_fields(node) -> Iterator[Tuple[str, Any]]:
+def iter_dataclass_fields(node: ast._Node) -> Iterator[Tuple[str, Any]]:
     """
-    Yield a tuple of ``(fieldname, value)`` for each field in ``node._fields``
-    that is present on *node*.
+    Loops over all fields of the given node, yielding the field's name and
+    the current value.
+
+    Yields:
+        Tuples of ``(fieldname, value)`` for each field in ``node._fields``.
     """
     for field in fields(node):
         yield field.name, getattr(node, field.name)
@@ -20,24 +18,36 @@ def iter_dataclass_fields(node) -> Iterator[Tuple[str, Any]]:
 
 class NodeVisitor:
     """
-    A node visitor base class that walks the abstract syntax tree and calls a
-    visitor function for every node found.  This function may return a value
-    which is forwarded by the `visit` method.
+    Base class for visitors that walk the :term:`AST` and calls a visitor
+    method for every node found. This method may return a value
+    which is forwarded by the :func:`visit` method.
+
     This class is meant to be subclassed, with the subclass adding visitor
     methods.
-    By default the visitor functions for the nodes are ``'visit_'`` +
-    class name of the node. If no visitor function exists for a node
-    (return value `None`) the `generic_visit` visitor is used instead.
+    By default the visitor methods for the nodes are named ``'visit_'`` +
+    class name of the node (e.g. ``visit_Identifier(self, identifier)``).
+    If no visitor method exists for a node, the :func:`generic_visit` visitor is
+    used instead.
     """
 
     def visit(self, node: ast._Node):
-        """Visit a node."""
+        """
+        Looks for an explicit node visiting method on ``self``,
+        otherwise calls :func:`generic_visit`.
+
+        Returns:
+            Whatever the called method returned. The user is free to choose what
+            the :class:`NodeVisitor` should return.
+        """
         method = "visit_" + node.__class__.__name__
         visitor = getattr(self, method, self.generic_visit)
         return visitor(node)
 
     def generic_visit(self, node: ast._Node):
-        """Called if no explicit visitor function exists for a node."""
+        """
+        Visits all fields on ``node`` recursively.
+        Called if no explicit visitor method exists for a node.
+        """
         for field, value in iter_dataclass_fields(node):
             if isinstance(value, list):
                 for item in value:
@@ -49,7 +59,9 @@ class NodeVisitor:
 
 class NodeTransformer(NodeVisitor):
     """
-    A visitor that can change the tree as it passes over it.
+    A subclass of :class:`NodeVisitor` that allows replacing of nodes in the
+    :term:`AST` as it passes over it. The visitor methods should return instances
+    of :class:`_Node` that replace the passed node.
     """
 
     def generic_visit(self, node: ast._Node) -> ast._Node:
