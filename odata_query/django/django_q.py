@@ -2,14 +2,15 @@ import datetime as dt
 import logging
 import operator
 import uuid
-from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from dateutil.parser import isoparse
-from django.db.models import Exists, F, Q, Subquery, Value, functions
+from django.db.models import Exists, F, Model, OuterRef, Q, Value, functions
 from django.db.models.expressions import Expression
 
 from odata_query import ast, exceptions as ex, typing, utils, visitor
+
+from .utils import reverse_relationship
 
 log = logging.getLogger(__name__)
 
@@ -24,16 +25,11 @@ COMPARISON_INVERT = {
 }
 
 
-@dataclass
-class SubQueryToken:
-    relation_to_main: str
-    query: Optional[Q]
-    wrap_in_expression: Type[Expression] = Subquery
-    expr_kwargs: Dict = field(default_factory=dict)
-
-
 class AstToDjangoQVisitor(visitor.NodeVisitor):
-    def __init__(self, field_mapping: Optional[Dict[str, str]] = None):
+    def __init__(
+        self, root_model: Type[Model], field_mapping: Optional[Dict[str, str]] = None
+    ):
+        self.root_model = root_model
         self.queryset_annotations: Dict[str, Expression] = {}
         self.field_mapping = field_mapping or {}
 
@@ -224,23 +220,34 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         if not owner_path:
             raise ex.NoIdentifierInComparisonException()
 
+        path_to_outerref, related_model = reverse_relationship(
+            owner_path, self.root_model
+        )
+        subquery = related_model.objects.filter(Q(**{path_to_outerref: OuterRef("pk")}))
+        # .values(related_field.remote_field.name)
+
         if node.lambda_:
             # For the lambda, we want to strip the identifier off, because
             # we will execute this as a subquery in the wanted model's context.
             subq_ast = utils.expression_relative_to_identifier(
                 node.lambda_.identifier, node.lambda_.expression
             )
-            subquery = self.visit(subq_ast)
+            subq_transformer = self.__class__(related_model)
+            subquery_filter = subq_transformer.visit(subq_ast)
         else:
-            subquery = None
+            subquery_filter = None
 
         if isinstance(node.operator, ast.Any):
             # If ANY item should match in the subquery, we can use EXISTS():
-            return Q(SubQueryToken(owner_path, subquery, Exists))
+            if subquery_filter:
+                subquery = subquery.filter(subquery_filter)
+            return Exists(subquery)
 
         elif isinstance(node.operator, ast.All):
             # If ALL items in the collection must match, we invert the condition and use NOT EXISTS():
-            return Q(SubQueryToken(owner_path, ~subquery, Exists, dict(negated=True)))
+            if subquery_filter:
+                subquery = subquery.filter(~subquery_filter)
+            return Exists(subquery, negated=True)
 
         else:
             raise NotImplementedError()

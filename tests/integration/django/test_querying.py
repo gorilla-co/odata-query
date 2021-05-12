@@ -52,6 +52,10 @@ def sample_data_sess(django_db):
         (BlogPost, "published_at gt 2019-06-01", 1),
         (Author, "contains(blogposts/title, 'Monkey')", 2),
         (Author, "startswith(blogposts/comments/content, 'Cool')", 2),
+        (Author, "comments/any()", 2),
+        (BlogPost, "authors/any(a: contains(a/name, 'o'))", 2),
+        (BlogPost, "authors/all(a: contains(a/name, 'o'))", 1),
+        (Author, "blogposts/comments/any(c: contains(c/content, 'Cool'))", 2),
         (Author, "id eq a7af27e6-f5a0-11e9-9649-0a252986adba", 0),
         (
             Author,
@@ -69,7 +73,7 @@ def test_query_with_odata(
     sample_data_sess,
 ):
     ast = parser.parse(lexer.tokenize(query))
-    transformer = AstToDjangoQVisitor()
+    transformer = AstToDjangoQVisitor(model)
     where_clause = transformer.visit(ast)
 
     results = model.objects.filter(where_clause).all()
@@ -99,7 +103,7 @@ def test_query_with_odata(
 )
 def test_odata_filter_to_sql_query(odata_query: str, expected_sql: str, lexer, parser):
     ast = parser.parse(lexer.tokenize(odata_query))
-    transformer = AstToDjangoQVisitor()
+    transformer = AstToDjangoQVisitor(Comment)
     res_q = transformer.visit(ast)
     queryset = Comment.objects.filter(res_q).distinct()
     sql = str(queryset.query)
