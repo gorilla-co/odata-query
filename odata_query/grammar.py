@@ -386,8 +386,7 @@ class ODataParser(Parser):
             # instead of being a deeply nested attribute:
             owner: ast.Identifier = p[1].owner
             new_owner = ast.Attribute(p[0], owner.name)
-            p[1].owner = new_owner
-            return p[1]
+            return ast.CollectionLambda(new_owner, p[1].operator, p[1].lambda_)
         else:
             return ast.Attribute(p[0], p[1].name)
 

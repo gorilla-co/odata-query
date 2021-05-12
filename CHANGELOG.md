@@ -6,11 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+- Added `NodeTransformers`, which are like `NodeVisitors` but replace visited
+  nodes with the returned value.
+
 ### Changed
 - The AstTo{ORMQuery} visitors for SQLAlchemy and Django now have the same
   interface.
 - AstToDjangoQVisitor now builds subqueries for `any()/all()` itself, instead
   of relying on `SubQueryToken`s and a seperate visitor.
+- Made all AST Nodes `frozen` (read-only), so they can be hashed.
+- Replaced `field_mapping` on the ORM visitors with a more general
+  `AliasRewriter` based on the new `NodeTransformers`.
+- Refactored `IdentifierStripper` to use the new `NodeTransformers`.
 
 ## [0.2.0] - 2021-05-05
 

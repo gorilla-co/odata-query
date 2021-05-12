@@ -26,22 +26,16 @@ COMPARISON_INVERT = {
 
 
 class AstToDjangoQVisitor(visitor.NodeVisitor):
-    def __init__(
-        self, root_model: Type[Model], field_mapping: Optional[Dict[str, str]] = None
-    ):
+    def __init__(self, root_model: Type[Model]):
         self.root_model = root_model
         self.queryset_annotations: Dict[str, Expression] = {}
-        self.field_mapping = field_mapping or {}
 
     def visit_Identifier(self, node: ast.Identifier) -> F:
-        name = node.name
-        name = self.field_mapping.get(name, name)
-        return F(name)
+        return F(node.name)
 
     def visit_Attribute(self, node: ast.Attribute) -> F:
         owner = self.visit(node.owner)
         full_id = owner.name + "__" + node.attr
-        full_id = self.field_mapping.get(full_id, full_id)
         return F(full_id)
 
     def visit_Null(self, node: ast.Null) -> str:

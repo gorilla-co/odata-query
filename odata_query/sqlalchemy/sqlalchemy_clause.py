@@ -1,6 +1,6 @@
 import datetime as dt
 import operator
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, List, Type, Union
 
 from dateutil.parser import isoparse
 from sqlalchemy.inspection import inspect
@@ -34,13 +34,8 @@ from . import functions_ext
 
 
 class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
-    def __init__(
-        self,
-        root_model: Type[DeclarativeMeta],
-        field_mapping: Optional[Dict[str, str]] = None,
-    ):
+    def __init__(self, root_model: Type[DeclarativeMeta]):
         self.root_model = root_model
-        self.field_mapping = field_mapping or {}
         self.join_relationships: List[InstrumentedAttribute] = []
 
     def visit_Identifier(self, node: ast.Identifier) -> ColumnClause:
