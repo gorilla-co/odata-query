@@ -5,17 +5,17 @@ from typing import List as ListType, Optional, Tuple
 DURATION_PATTERN = re.compile(r"([+-])?P(\d+D)?(?:T(\d+H)?(\d+M)?(\d+(?:\.\d+)?S)?)?")
 
 
-@dataclass
+@dataclass(frozen=True)
 class _Node:
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Identifier(_Node):
     name: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Attribute(_Node):
     owner: _Node
     attr: str
@@ -24,52 +24,52 @@ class Attribute(_Node):
 ###############################################################################
 # Literals
 ###############################################################################
-@dataclass
+@dataclass(frozen=True)
 class _Literal(_Node):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Null(_Literal):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Integer(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Float(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Boolean(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class String(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Date(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Time(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class DateTime(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Duration(_Literal):
     val: str
 
@@ -94,12 +94,12 @@ class Duration(_Literal):
         return sign, _days, _hours, _minutes, _seconds
 
 
-@dataclass
+@dataclass(frozen=True)
 class GUID(_Literal):
     val: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class List(_Literal):
     val: ListType[_Literal]
 
@@ -107,37 +107,37 @@ class List(_Literal):
 ###############################################################################
 # Arithmetic
 ###############################################################################
-@dataclass
+@dataclass(frozen=True)
 class _BinOpToken(_Node):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Add(_BinOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Sub(_BinOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Mult(_BinOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Div(_BinOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Mod(_BinOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class BinOp(_Node):
     op: _BinOpToken
     left: _Node
@@ -147,47 +147,47 @@ class BinOp(_Node):
 ###############################################################################
 # Comparison
 ###############################################################################
-@dataclass
+@dataclass(frozen=True)
 class _Comparator(_Node):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Eq(_Comparator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class NotEq(_Comparator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Lt(_Comparator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class LtE(_Comparator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Gt(_Comparator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class GtE(_Comparator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class In(_Comparator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Compare(_Node):
     comparator: _Comparator
     left: _Node
@@ -197,22 +197,22 @@ class Compare(_Node):
 ###############################################################################
 # Boolean ops
 ###############################################################################
-@dataclass
+@dataclass(frozen=True)
 class _BoolOpToken(_Node):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class And(_BoolOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Or(_BoolOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class BoolOp(_Node):
     op: _BoolOpToken
     left: _Node
@@ -222,22 +222,22 @@ class BoolOp(_Node):
 ###############################################################################
 # Unary ops
 ###############################################################################
-@dataclass
+@dataclass(frozen=True)
 class _UnaryOpToken(_Node):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Not(_UnaryOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class USub(_UnaryOpToken):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class UnaryOp(_Node):
     op: _UnaryOpToken
     operand: _Node
@@ -246,7 +246,7 @@ class UnaryOp(_Node):
 ###############################################################################
 # Function calls
 ###############################################################################
-@dataclass
+@dataclass(frozen=True)
 class Call(_Node):
     func: Identifier
     args: ListType[_Node]
@@ -255,28 +255,28 @@ class Call(_Node):
 ###############################################################################
 # Collections
 ###############################################################################
-@dataclass
+@dataclass(frozen=True)
 class _CollectionOperator(_Node):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Any(_CollectionOperator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class All(_CollectionOperator):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Lambda(_Node):
     identifier: Identifier
     expression: _Node
 
 
-@dataclass
+@dataclass(frozen=True)
 class CollectionLambda(_Node):
     owner: _Node
     operator: _CollectionOperator

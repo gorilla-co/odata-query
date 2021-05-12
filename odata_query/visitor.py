@@ -25,18 +25,18 @@ class NodeVisitor:
     which is forwarded by the `visit` method.
     This class is meant to be subclassed, with the subclass adding visitor
     methods.
-    Per default the visitor functions for the nodes are ``'visit_'`` +
+    By default the visitor functions for the nodes are ``'visit_'`` +
     class name of the node. If no visitor function exists for a node
     (return value `None`) the `generic_visit` visitor is used instead.
     """
 
-    def visit(self, node):
+    def visit(self, node: ast._Node):
         """Visit a node."""
         method = "visit_" + node.__class__.__name__
         visitor = getattr(self, method, self.generic_visit)
         return visitor(node)
 
-    def generic_visit(self, node):
+    def generic_visit(self, node: ast._Node):
         """Called if no explicit visitor function exists for a node."""
         for field, value in iter_dataclass_fields(node):
             if isinstance(value, list):
@@ -45,3 +45,29 @@ class NodeVisitor:
                         self.visit(item)
             elif isinstance(value, ast._Node):
                 self.visit(value)
+
+
+class NodeTransformer(NodeVisitor):
+    """
+    A visitor that can change the tree as it passes over it.
+    """
+
+    def generic_visit(self, node: ast._Node) -> ast._Node:
+        new_kwargs = {}
+
+        for field, value in iter_dataclass_fields(node):
+            if isinstance(value, list):
+                new_val = []
+                for item in value:
+                    if isinstance(item, ast._Node):
+                        new_val.append(self.visit(item))
+                    else:
+                        new_val.append(item)
+            elif isinstance(value, ast._Node):
+                new_val = self.visit(value)
+            else:
+                new_val = value
+
+            new_kwargs[field] = new_val
+
+        return type(node)(**new_kwargs)  # type: ignore

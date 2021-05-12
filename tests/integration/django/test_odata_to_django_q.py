@@ -237,68 +237,6 @@ def test_odata_filter_to_django_q(odata_query: str, expected_q: str, lexer, pars
 
 
 @pytest.mark.parametrize(
-    "odata_query, expected_q, field_mapping",
-    [
-        (
-            "data_type/modules eq 'pricing_power'",
-            Q(
-                data_type_version__versioned_model__modules__code__exact=Value(
-                    "pricing_power"
-                )
-            ),
-            {"data_type__modules": "data_type_version__versioned_model__modules__code"},
-        ),
-        (
-            "data_type/modules in ('pricing_power',)",
-            Q(
-                data_type_version__versioned_model__modules__code__in=[
-                    Value("pricing_power")
-                ]
-            ),
-            {"data_type__modules": "data_type_version__versioned_model__modules__code"},
-        ),
-        (
-            "data_type/id eq a7af27e6-f5a0-11e9-9649-0a252986adba",
-            Q(
-                data_type_version__id__exact=uuid.UUID(
-                    "a7af27e6-f5a0-11e9-9649-0a252986adba"
-                )
-            ),
-            {"data_type__id": "data_type_version__id"},
-        ),
-        (
-            "modules eq 'pricing_power'",
-            Q(versioned_model__modules__code__exact=Value("pricing_power")),
-            {"modules": "versioned_model__modules__code"},
-        ),
-        (
-            "modules eq 'pricing_power'",
-            Q(modules__code__exact=Value("pricing_power")),
-            {"modules": "modules__code"},
-        ),
-        (
-            "modules in ('pricing_power',)",
-            Q(modules__code__in=[Value("pricing_power")]),
-            {"modules": "modules__code"},
-        ),
-        (
-            "contains(tolower(title), 'factors')",
-            Q(versioned_model__title__lower__contains=Value("factors")),
-            {"title": "versioned_model__title"},
-        ),
-    ],
-)
-def test_odata_filter_to_django_q_with_field_mapping(
-    odata_query: str, expected_q: str, field_mapping: dict, lexer, parser
-):
-    ast = parser.parse(lexer.tokenize(odata_query))
-    transformer = AstToDjangoQVisitor(BlogPost, field_mapping)
-    res_q = transformer.visit(ast)
-
-    assert res_q == expected_q
-
-
-@pytest.mark.parametrize(
     "odata_query, expected_exception",
     [
         ("published_at lt 2019-02-31", exceptions.ValueException),
