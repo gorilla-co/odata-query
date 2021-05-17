@@ -135,3 +135,13 @@ class ValueException(ODataException):
     def __init__(self, value):
         self.value = value
         super().__init__(f"Invalid value: {value}")
+
+
+class InvalidFieldException(ODataException):
+    """
+    Thrown when a field mentioned in a query does not exist.
+    """
+
+    def __init__(self, field_name: str):
+        self.field_name = field_name
+        super().__init__(f"Invalid field: {field_name}")

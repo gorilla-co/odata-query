@@ -48,7 +48,10 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def visit_Identifier(self, node: ast.Identifier) -> ColumnClause:
         ":meta private:"
-        return getattr(self.root_model, node.name)
+        try:
+            return getattr(self.root_model, node.name)
+        except AttributeError:
+            raise ex.InvalidFieldException(node.name)
 
     def visit_Attribute(self, node: ast.Attribute) -> ColumnClause:
         ":meta private:"
@@ -63,7 +66,10 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
         # We'd like to reference the column on the related class:
         owner_cls = prop_inspect.entity.class_
-        return getattr(owner_cls, node.attr)
+        try:
+            return getattr(owner_cls, node.attr)
+        except AttributeError:
+            raise ex.InvalidFieldException(node.attr)
 
     def visit_Null(self, node: ast.Null) -> Null:
         ":meta private:"
