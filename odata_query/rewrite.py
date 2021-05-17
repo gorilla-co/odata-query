@@ -20,9 +20,7 @@ class AliasRewriter(NodeTransformer):
             the default one.
     """
 
-    def __init__(
-        self, field_aliases: Dict[ast._Node, ast._Node], lexer=None, parser=None
-    ):
+    def __init__(self, field_aliases: Dict[str, str], lexer=None, parser=None):
         self.field_aliases = field_aliases
 
         if not lexer:
