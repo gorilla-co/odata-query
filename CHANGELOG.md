@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added `NodeTransformers`, which are like `NodeVisitors` but replace visited
   nodes with the returned value.
+- Initial API documentation.
 
 ### Changed
 - The AstTo{ORMQuery} visitors for SQLAlchemy and Django now have the same
