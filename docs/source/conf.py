@@ -22,7 +22,7 @@ copyright = "2021, Gorilla"
 author = "Oliver Hofkens"
 
 # The full version, including alpha/beta/rc tags
-release = "0.4.0b0"
+release = "0.4.0b1"
 
 
 # -- General configuration ---------------------------------------------------
