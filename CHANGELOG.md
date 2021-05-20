@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Raise a new `InvalidFieldException` if a field in a query doesn't exist.
 
+### Fixed
+- Allow `AliasRewriter` to recurse into `Attribute` nodes, in order to replace
+  nodes in the `Attribute`'s ownership chain.
+
 ## [0.3.0] - 2021-05-17
 
 ### Added
