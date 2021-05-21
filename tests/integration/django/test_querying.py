@@ -62,6 +62,7 @@ def sample_data_sess(django_db):
             "id in (a7af27e6-f5a0-11e9-9649-0a252986adba, 800c56e4-354d-11eb-be38-3af9d323e83c)",
             0,
         ),
+        (BlogPost, "comments/author eq 0", 0),
     ],
 )
 def test_query_with_odata(

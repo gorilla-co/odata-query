@@ -212,6 +212,12 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
         right = self.visit(node.right)
         op = self.visit(node.comparator)
 
+        # If a node is a `relationship` representing a single foreign key,
+        # the client meant to compare the foreign key, not the related object.
+        # E.g. In "blogpost/author eq 1", left should be "blogpost/author_id"
+        left = self._maybe_sub_relationship_with_foreign_key(left)
+        right = self._maybe_sub_relationship_with_foreign_key(right)
+
         return op(left, right)
 
     def visit_And(
@@ -399,3 +405,23 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
         op = getattr(identifier, func)
 
         return op(substring)
+
+    def _maybe_sub_relationship_with_foreign_key(
+        self, elem: ClauseElement
+    ) -> ClauseElement:
+        """
+        If the given ClauseElement is a `relationship` with a single ForeignKey,
+        replace it with the `ForeignKey` itself.
+
+        :meta private:
+        """
+        try:
+            prop_inspect = inspect(elem).property
+            if isinstance(prop_inspect, RelationshipProperty):
+                foreign_key = prop_inspect._calculated_foreign_keys
+                if len(foreign_key) == 1:
+                    return next(iter(foreign_key))
+        except Exception:
+            pass
+
+        return elem
