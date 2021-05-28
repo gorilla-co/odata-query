@@ -9,6 +9,7 @@ Submodules
 
    odata_query.django.django_q
    odata_query.django.django_q_ext
+   odata_query.django.shorthand
    odata_query.django.utils
 
 Module contents

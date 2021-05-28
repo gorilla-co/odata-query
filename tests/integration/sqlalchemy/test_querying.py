@@ -4,7 +4,7 @@ from typing import Type
 import pytest
 from sqlalchemy import select
 
-from odata_query.sqlalchemy import AstToSqlAlchemyClauseVisitor
+from odata_query.sqlalchemy import apply_odata_query
 
 from .models import Author, Base, BlogPost, Comment
 
@@ -55,18 +55,12 @@ def sample_data_sess(db_session):
             0,
         ),
         (BlogPost, "comments/author eq 0", 0),
+        (BlogPost, "substring(content, 0) eq 'test'", 0),
     ],
 )
 def test_query_with_odata(
-    model: Type[Base], query: str, exp_results: int, lexer, parser, sample_data_sess
+    model: Type[Base], query: str, exp_results: int, sample_data_sess
 ):
-    ast = parser.parse(lexer.tokenize(query))
-    transformer = AstToSqlAlchemyClauseVisitor(model)
-    where_clause = transformer.visit(ast)
-
-    q = select(model)
-    for j in transformer.join_relationships:
-        q = q.join(j)
-    q = q.filter(where_clause)
+    q = apply_odata_query(select(model), query)
     results = sample_data_sess.execute(q).scalars().all()
     assert len(results) == exp_results
