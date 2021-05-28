@@ -18,13 +18,9 @@ of your choice:
 
 ```bash
 pip install odata-query
-
 # OR
-
 poetry add odata-query
-
 # OR
-
 pipenv install odata-query
 ```
 
@@ -41,7 +37,7 @@ The following `extra`s relate to the development of this library:
 - `docs`: For building the project documentation.
 
 
-You can specify `extra`s by specifying them between square brackets during
+You can install `extra`s by adding them between square brackets during
 installation:
 
 ```bash
