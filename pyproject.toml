@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "odata-query"
-version = "0.4.0b2"
+version = "0.4.0"
 description = "An OData query parser and transpiler."
 authors = ["Oliver Hofkens <oliver@gorilla.co>"]
 readme = "README.md"
