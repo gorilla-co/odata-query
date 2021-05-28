@@ -4,7 +4,7 @@ from typing import Type
 import pytest
 from django.db import models, transaction
 
-from odata_query.django import AstToDjangoQVisitor
+from odata_query.django import apply_odata_query
 
 from .models import Author, BlogPost, Comment
 
@@ -63,21 +63,17 @@ def sample_data_sess(django_db):
             0,
         ),
         (BlogPost, "comments/author eq 0", 0),
+        (BlogPost, "substring(content, 0) eq 'test'", 0),
     ],
 )
 def test_query_with_odata(
     model: Type[models.Model],
     query: str,
     exp_results: int,
-    lexer,
-    parser,
     sample_data_sess,
 ):
-    ast = parser.parse(lexer.tokenize(query))
-    transformer = AstToDjangoQVisitor(model)
-    where_clause = transformer.visit(ast)
-
-    results = model.objects.filter(where_clause).all()
+    q = apply_odata_query(model.objects, query)
+    results = q.all()
     assert len(results) == exp_results
 
 
@@ -102,10 +98,8 @@ def test_query_with_odata(
         ),
     ],
 )
-def test_odata_filter_to_sql_query(odata_query: str, expected_sql: str, lexer, parser):
-    ast = parser.parse(lexer.tokenize(odata_query))
-    transformer = AstToDjangoQVisitor(Comment)
-    res_q = transformer.visit(ast)
-    queryset = Comment.objects.filter(res_q).distinct()
+def test_odata_filter_to_sql_query(odata_query: str, expected_sql: str):
+    q = apply_odata_query(Comment.objects, odata_query)
+    queryset = q.distinct()
     sql = str(queryset.query)
     assert sql == expected_sql

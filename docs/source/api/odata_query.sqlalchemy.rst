@@ -8,6 +8,7 @@ Submodules
    :maxdepth: 4
 
    odata_query.sqlalchemy.functions_ext
+   odata_query.sqlalchemy.shorthand
    odata_query.sqlalchemy.sqlalchemy_clause
 
 Module contents
