@@ -1,3 +1,5 @@
+.. _ref-parsing-odata:
+
 Parsing OData
 =============
 
