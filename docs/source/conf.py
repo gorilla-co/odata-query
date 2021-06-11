@@ -35,6 +35,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.doctest",
     "sphinx.ext.graphviz",
+    "sphinx.ext.viewcode",
     "myst_parser",
 ]
 
