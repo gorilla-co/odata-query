@@ -1,5 +1,5 @@
 ```{include} ../../README.md
-:end-before: splitinclude-1
+:end-before: <!--- splitinclude-1 -->
 ```
 
 ## Contents
@@ -13,7 +13,7 @@ api/index
 ```
 
 ```{include} ../../README.md
-:start-after: splitinclude-2
+:start-after: <!--- splitinclude-2 -->
 ```
 
 ## Indices and tables

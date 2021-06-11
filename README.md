@@ -75,7 +75,7 @@ query = apply_odata_query(orm_query, odata_query)
 results = session.execute(query).scalars().all()
 ```
 
-% splitinclude-1
+<!--- splitinclude-1 -->
 
 ## Advanced Usage
 
@@ -83,7 +83,7 @@ Not all use cases are as simple as that. Luckily, `odata-query` is very modular
 and extensible. See the [Documentation](docs/source/index.rst) for advanced usage
 or extending the library for other cases.
 
-% splitinclude-2
+<!--- splitinclude-2 -->
 
 ## Contact
 
