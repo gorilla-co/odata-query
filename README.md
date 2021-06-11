@@ -44,6 +44,46 @@ installation:
 pip install odata-query[sqlalchemy]
 ```
 
+## Quickstart
+
+The most common use case is probably parsing an OData query string, and applying
+it to a query your ORM understands. For this purpose there is an all-in-one function:
+`apply_odata_query`.
+
+Example for Django:
+
+```python
+from odata_query.django import apply_odata_query
+
+orm_query = MyModel.objects  # This can be a Manager or a QuerySet.
+odata_query = "name eq 'test'"  # This will usually come from a query string parameter.
+
+query = apply_odata_query(orm_query, odata_query)
+results = query.all()
+```
+
+
+Example for SQLAlchemy:
+
+```python
+from odata_query.sqlalchemy import apply_odata_query
+
+orm_query = select(MyModel)  # This is any form of Query or Selectable.
+odata_query = "name eq 'test'"  # This will usually come from a query string parameter.
+
+query = apply_odata_query(orm_query, odata_query)
+results = session.execute(query).scalars().all()
+```
+
+% splitinclude-1
+
+## Advanced Usage
+
+Not all use cases are as simple as that. Luckily, `odata-query` is very modular
+and extensible. See the [Documentation](docs/source/index.rst) for advanced usage
+or extending the library for other cases.
+
+% splitinclude-2
 
 ## Contact
 
