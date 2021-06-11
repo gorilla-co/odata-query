@@ -12,6 +12,8 @@ Getting Started <self>
 ```{toctree}
 :maxdepth: 2
 
+django
+sqlalchemy
 parsing-odata
 working-with-ast
 glossary
