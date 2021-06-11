@@ -4,6 +4,12 @@
 
 ## Contents
 ```{toctree}
+:maxdepth: 1
+
+Getting Started <self>
+```
+
+```{toctree}
 :maxdepth: 2
 
 parsing-odata
