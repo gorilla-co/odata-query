@@ -81,8 +81,8 @@ results = session.execute(query).scalars().all()
 ## Advanced Usage
 
 Not all use cases are as simple as that. Luckily, `odata-query` is very modular
-and extensible. See the [Documentation](docs/source/index.rst) for advanced usage
-or extending the library for other cases.
+and extensible. See the [Documentation](https://odata-query.readthedocs.io/en/latest)
+for advanced usage or extending the library for other cases.
 
 <!--- splitinclude-2 -->
 
