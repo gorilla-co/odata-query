@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added shorthands for the most common use cases: Applying an OData filter
   straight to a Django QuerySet or SQLAlchemy query.
 
+### Fixed
+- Cleared warnings produced in SLY by wrong regex flag placement.
+
+
 ## [0.4.0] - 2021-05-28
 
 ### Changed
