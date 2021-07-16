@@ -5,6 +5,7 @@ Implementation of a subset of the
 Implemented with `SLY <https://sly.readthedocs.io/en/latest/>`_.
 """
 
+import re
 from typing import List
 
 from sly import Lexer, Parser
@@ -93,6 +94,7 @@ class ODataLexer(Lexer):
         WS,
     }
     literals = {"(", ")", ",", "/", ":"}
+    reflags = re.I
 
     def error(self, token):
         """
@@ -111,7 +113,7 @@ class ODataLexer(Lexer):
     # Primitive literals
     ####################################################################################
 
-    @_(r"(?i)duration'[+-]?P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?'")
+    @_(r"duration'[+-]?P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?'")
     def DURATION(self, t):
         ":meta private:"
         val = t.value.upper()
@@ -136,7 +138,7 @@ class ODataLexer(Lexer):
         t.value = ast.String(val)
         return t
 
-    @_(r"(?i)[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}")
+    @_(r"[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}")
     def GUID(self, t):
         ":meta private:"
         t.value = ast.GUID(t.value)
@@ -187,31 +189,31 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Arithmetic
     ####################################################################################
-    @_(fr"(?i){_RWS}add{_RWS}")
+    @_(fr"{_RWS}add{_RWS}")
     def ADD(self, t):
         ":meta private:"
         t.value = ast.Add()
         return t
 
-    @_(fr"(?i){_RWS}sub{_RWS}")
+    @_(fr"{_RWS}sub{_RWS}")
     def SUB(self, t):
         ":meta private:"
         t.value = ast.Sub()
         return t
 
-    @_(fr"(?i){_RWS}mul{_RWS}")
+    @_(fr"{_RWS}mul{_RWS}")
     def MUL(self, t):
         ":meta private:"
         t.value = ast.Mult()
         return t
 
-    @_(fr"(?i){_RWS}div{_RWS}")
+    @_(fr"{_RWS}div{_RWS}")
     def DIV(self, t):
         ":meta private:"
         t.value = ast.Div()
         return t
 
-    @_(fr"(?i){_RWS}mod{_RWS}")
+    @_(fr"{_RWS}mod{_RWS}")
     def MOD(self, t):
         ":meta private:"
         t.value = ast.Mod()
@@ -226,19 +228,19 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Boolean logic
     ####################################################################################
-    @_(fr"(?i){_RWS}and{_RWS}")
+    @_(fr"{_RWS}and{_RWS}")
     def AND(self, t):
         ":meta private:"
         t.value = ast.And()
         return t
 
-    @_(fr"(?i){_RWS}or{_RWS}")
+    @_(fr"{_RWS}or{_RWS}")
     def OR(self, t):
         ":meta private:"
         t.value = ast.Or()
         return t
 
-    @_(fr"(?i)not{_RWS}")
+    @_(fr"not{_RWS}")
     def NOT(self, t):
         ":meta private:"
         t.value = ast.Not()
@@ -247,43 +249,43 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Comparators
     ####################################################################################
-    @_(fr"(?i){_RWS}eq{_RWS}")
+    @_(fr"{_RWS}eq{_RWS}")
     def EQ(self, t):
         ":meta private:"
         t.value = ast.Eq()
         return t
 
-    @_(fr"(?i){_RWS}ne{_RWS}")
+    @_(fr"{_RWS}ne{_RWS}")
     def NE(self, t):
         ":meta private:"
         t.value = ast.NotEq()
         return t
 
-    @_(fr"(?i){_RWS}lt{_RWS}")
+    @_(fr"{_RWS}lt{_RWS}")
     def LT(self, t):
         ":meta private:"
         t.value = ast.Lt()
         return t
 
-    @_(fr"(?i){_RWS}le{_RWS}")
+    @_(fr"{_RWS}le{_RWS}")
     def LE(self, t):
         ":meta private:"
         t.value = ast.LtE()
         return t
 
-    @_(fr"(?i){_RWS}gt{_RWS}")
+    @_(fr"{_RWS}gt{_RWS}")
     def GT(self, t):
         ":meta private:"
         t.value = ast.Gt()
         return t
 
-    @_(fr"(?i){_RWS}ge{_RWS}")
+    @_(fr"{_RWS}ge{_RWS}")
     def GE(self, t):
         ":meta private:"
         t.value = ast.GtE()
         return t
 
-    @_(fr"(?i){_RWS}in{_RWS}")
+    @_(fr"{_RWS}in{_RWS}")
     def IN(self, t):
         ":meta private:"
         t.value = ast.In()
@@ -292,13 +294,13 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Collection operators
     ####################################################################################
-    @_(r"(?i)any")
+    @_(r"any")
     def ANY(self, t):
         ":meta private:"
         t.value = ast.Any()
         return t
 
-    @_(r"(?i)all")
+    @_(r"all")
     def ALL(self, t):
         ":meta private:"
         t.value = ast.All()
@@ -307,7 +309,7 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Misc
     ####################################################################################
-    @_(r"(?i)[_a-z]\w{0,127}")
+    @_(r"[_a-z]\w{0,127}")
     def ODATA_IDENTIFIER(self, t):
         ":meta private:"
         t.value = ast.Identifier(t.value)
