@@ -3,7 +3,7 @@ name = "odata-query"
 version = "0.4.1"
 description = "An OData query parser and transpiler."
 authors = ["Oliver Hofkens <oliver@gorilla.co>"]
-readme = "README.md"
+readme = "README.rst"
 license = "MIT"
 keywords = ["OData", "Query", "Parser"]
 classifiers = [
@@ -39,13 +39,12 @@ pytest = { version = "^6.2", optional = true }
 pytest-cov = { version = "*", optional = true }
 sphinx = { version = "<4.0", optional = true }
 sphinx-rtd-theme = { version = "^0.5", optional = true }
-myst-parser = { version = "^0.14", optional = true }
 vulture = { version = "^2.3", optional = true }
 
 [tool.poetry.extras]
 dev = ["bump2version"]
 django = ["django"]
-docs = ["sphinx", "sphinx-rtd-theme", "myst-parser"]
+docs = ["sphinx", "sphinx-rtd-theme"]
 linting = ["flake8", "black", "isort", "mypy", "yamllint", "vulture"]
 sqlalchemy = ["sqlalchemy"]
 testing = ["pytest", "pytest-cov", "Faker", "moto"]
