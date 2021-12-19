@@ -26,6 +26,7 @@ Removed
 
 * Docs: Removed the ``Myst`` dependency as we're no longer mixing markdown into
   our docs.
+* Dev: Removed the ``moto`` and ``Faker`` dependencies as they weren't used.
 
 [0.4.1] - 2021-07-16
 --------------------
