@@ -106,7 +106,7 @@ Contact
 -------
 
 Got any questions or ideas? We'd love to hear from you. Check out our
-:ref:`contributing guidelines <contributing>` for ways to offer feedback and
+`contributing guidelines`_ for ways to offer feedback and
 contribute.
 
 
@@ -124,3 +124,4 @@ Licensed under the MIT License.
 .. _sqlalchemy queries: https://docs.sqlalchemy.org/en/14/orm/loading_objects.html
 .. _documentation: https://odata-query.readthedocs.io/en/latest
 .. _Gorillini NV: https://gorilla.co/
+.. _contributing guidelines: ./CONTRIBUTING.rst
