@@ -105,7 +105,7 @@ class ODataLexer(Lexer):
         Raises:
             TokenizingException
         """
-        raise exceptions.TokenizingException(text)
+        raise exceptions.TokenizingException(token)
 
     # NOTE: Ordering of tokens is important! Longer tokens preferably first
 
