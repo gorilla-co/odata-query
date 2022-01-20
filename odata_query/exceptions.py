@@ -108,9 +108,9 @@ class ArgumentTypeException(FunctionCallException):
         else:
             message = "Invalid argument type for function or operator."
         if expected_type:
-            message += " Expected {expected_type}"
+            message += f" Expected {expected_type}"
             if actual_type:
-                message += ", got {actual_type}"
+                message += f", got {actual_type}"
 
         super().__init__(message)
 
