@@ -1,8 +1,6 @@
-import datetime as dt
 import operator
 from typing import Any, Callable, List, Type, Union
 
-from dateutil.parser import isoparse
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.decl_api import DeclarativeMeta
@@ -77,11 +75,11 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def visit_Integer(self, node: ast.Integer) -> BindParameter:
         ":meta private:"
-        return literal(int(node.val))
+        return literal(node.py_val)
 
     def visit_Float(self, node: ast.Float) -> BindParameter:
         ":meta private:"
-        return literal(float(node.val))
+        return literal(node.py_val)
 
     def visit_Boolean(self, node: ast.Boolean) -> Union[True_, False_]:
         ":meta private:"
@@ -92,41 +90,32 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def visit_String(self, node: ast.String) -> BindParameter:
         ":meta private:"
-        return literal(node.val)
+        return literal(node.py_val)
 
     def visit_Date(self, node: ast.Date) -> BindParameter:
         ":meta private:"
         try:
-            return literal(dt.date.fromisoformat(node.val))
+            return literal(node.py_val)
         except ValueError:
             raise ex.ValueException(node.val)
 
     def visit_DateTime(self, node: ast.DateTime) -> BindParameter:
         ":meta private:"
         try:
-            return literal(isoparse(node.val))
+            return literal(node.py_val)
         except ValueError:
             raise ex.ValueException(node.val)
 
     def visit_Time(self, node: ast.Time) -> BindParameter:
         ":meta private:"
         try:
-            return literal(dt.time.fromisoformat(node.val))
+            return literal(node.py_val)
         except ValueError:
             raise ex.ValueException(node.val)
 
     def visit_Duration(self, node: ast.Duration) -> BindParameter:
         ":meta private:"
-        sign, days, hours, minutes, seconds = node.unpack()
-        td = dt.timedelta(
-            days=float(days or 0),
-            hours=float(hours or 0),
-            minutes=float(minutes or 0),
-            seconds=float(seconds or 0),
-        )
-        if sign and sign == "-":
-            td = -1 * td
-        return literal(td)
+        return literal(node.py_val)
 
     def visit_GUID(self, node: ast.GUID) -> BindParameter:
         ":meta private:"

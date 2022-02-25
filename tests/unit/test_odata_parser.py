@@ -1,3 +1,6 @@
+import datetime as dt
+from uuid import UUID
+
 import pytest
 
 from odata_query import ast, exceptions
@@ -105,6 +108,54 @@ def test_duration_parsing(value: str, expected_unpacked: tuple):
 
     assert isinstance(res, ast.Duration)
     assert res.unpack() == expected_unpacked
+
+
+@pytest.mark.parametrize(
+    "odata_val, exp_py_val",
+    [
+        ("null", None),
+        ("12", 12),
+        ("0", 0),
+        ("-12", -12),
+        ("1.0", 1.0),
+        ("-1.0", -1.0),
+        ("1e5", 1e5),
+        ("-1e5", -1e5),
+        ("1e-5", 1e-5),
+        ("-1e-5", -1e-5),
+        ("1.0e5", 1.0e5),
+        ("-1.0e5", -1.0e5),
+        ("-1.0e-5", -1.0e-5),
+        ("1.123", 1.123),
+        ("-123.132", -123.132),
+        ("true", True),
+        ("false", False),
+        (
+            "1edbc3b3-3685-4a19-a7ed-eb562c198d96",
+            UUID("1edbc3b3-3685-4a19-a7ed-eb562c198d96"),
+        ),
+        (
+            "6047331A-6F47-42A4-87E0-7078A0A95062",
+            UUID("6047331A-6F47-42A4-87E0-7078A0A95062"),
+        ),
+        ("1999-12-31", dt.date(1999, 12, 31)),
+        ("1999-12-31T00:00:00", dt.datetime(1999, 12, 31)),
+        ("1999-12-31T23:59:59", dt.datetime(1999, 12, 31, 23, 59, 59)),
+        ("14:00:00", dt.time(14)),
+        ("(1, 2, 3)", [1, 2, 3]),
+        ("(1.0, 2.0, 3.0)", [1.0, 2.0, 3.0]),
+        ("(1, 2.0, '3')", [1, 2.0, "3"]),
+        (
+            "duration'P12DT23H59M59.9S'",
+            dt.timedelta(days=12, hours=23, minutes=59, seconds=59.9),
+        ),
+        ("duration'P12D'", dt.timedelta(days=12)),
+    ],
+)
+def test_python_value_of_literals(odata_val: str, exp_py_val):
+    res = parse(odata_val, "common_expr")
+
+    assert res.py_val == exp_py_val
 
 
 @pytest.mark.parametrize(
