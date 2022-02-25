@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List as ListType, Optional, Tuple
 
 DURATION_PATTERN = re.compile(r"([+-])?P(\d+D)?(?:T(\d+H)?(\d+M)?(\d+(?:\.\d+)?S)?)?")
@@ -13,6 +13,7 @@ class _Node:
 @dataclass(frozen=True)
 class Identifier(_Node):
     name: str
+    namespace: Tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

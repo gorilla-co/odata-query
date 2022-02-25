@@ -21,6 +21,7 @@ def tz(offset: int) -> dt.tzinfo:
             "id eq a7af27e6-f5a0-11e9-9649-0a252986adba",
             Q(id__exact=uuid.UUID("a7af27e6-f5a0-11e9-9649-0a252986adba")),
         ),
+        ("my_app.id eq 1", Q(id__exact=Value(1))),
         (
             "id in (a7af27e6-f5a0-11e9-9649-0a252986adba, 800c56e4-354d-11eb-be38-3af9d323e83c)",
             Q(
