@@ -309,10 +309,11 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Misc
     ####################################################################################
-    @_(r"[_a-z]\w{0,127}")
+    @_(r"[_a-z](?:\.?\w){0,127}")
     def ODATA_IDENTIFIER(self, t):
         ":meta private:"
-        t.value = ast.Identifier(t.value)
+        *ns, identifier = t.value.split(".")
+        t.value = ast.Identifier(identifier, tuple(ns))
         return t
 
     WS = _RWS

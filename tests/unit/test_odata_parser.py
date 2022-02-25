@@ -133,6 +133,8 @@ def test_list_parsing(value: str):
     "value, expected_type",
     [
         ("meter_id", ast.Identifier),
+        ("nammespace.meter_id", ast.Identifier),
+        ("multiple.namespace.meter_id", ast.Identifier),
         ("_id", ast.Identifier),
         ("_123", ast.Identifier),
         ("ab123", ast.Identifier),
@@ -153,6 +155,23 @@ def test_member_expression_parsing(value: str, expected_type: type):
         (
             "meter_id eq '1'",
             ast.Compare(ast.Eq(), ast.Identifier("meter_id"), ast.String("1")),
+        ),
+        (
+            "namespace.meter_id eq 1",
+            ast.Compare(
+                ast.Eq(), ast.Identifier("meter_id", ("namespace",)), ast.Integer("1")
+            ),
+        ),
+        (
+            "ns1.ns2.meter_id eq 1",
+            ast.Compare(
+                ast.Eq(),
+                ast.Identifier(
+                    "meter_id",
+                    ("ns1", "ns2"),
+                ),
+                ast.Integer("1"),
+            ),
         ),
         (
             "meter_id eq 'o''reilly'''",
