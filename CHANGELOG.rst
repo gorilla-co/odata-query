@@ -14,6 +14,8 @@ Added
 ^^^^^
 
 * Parser: Rudimentary OData namespace support.
+* AST: Literal nodes now have a `py_val` getter that returns the closest Python
+  approximation to the OData value.
 
 
 [0.4.2] - 2021-12-19

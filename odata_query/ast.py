@@ -1,6 +1,10 @@
+import datetime as dt
 import re
 from dataclasses import dataclass, field
 from typing import List as ListType, Optional, Tuple
+from uuid import UUID
+
+from dateutil.parser import isoparse
 
 DURATION_PATTERN = re.compile(r"([+-])?P(\d+D)?(?:T(\d+H)?(\d+M)?(\d+(?:\.\d+)?S)?)?")
 
@@ -29,50 +33,97 @@ class Attribute(_Node):
 class _Literal(_Node):
     pass
 
+    @property
+    def py_val(self):
+        raise NotImplementedError()
+
 
 @dataclass(frozen=True)
 class Null(_Literal):
-    pass
+    @property
+    def py_val(self) -> None:
+        return None
 
 
 @dataclass(frozen=True)
 class Integer(_Literal):
     val: str
 
+    @property
+    def py_val(self) -> int:
+        return int(self.val)
+
 
 @dataclass(frozen=True)
 class Float(_Literal):
     val: str
+
+    @property
+    def py_val(self) -> float:
+        return float(self.val)
 
 
 @dataclass(frozen=True)
 class Boolean(_Literal):
     val: str
 
+    @property
+    def py_val(self) -> bool:
+        return self.val.lower() == "true"
+
 
 @dataclass(frozen=True)
 class String(_Literal):
     val: str
+
+    @property
+    def py_val(self) -> str:
+        return self.val
 
 
 @dataclass(frozen=True)
 class Date(_Literal):
     val: str
 
+    @property
+    def py_val(self) -> dt.date:
+        return dt.date.fromisoformat(self.val)
+
 
 @dataclass(frozen=True)
 class Time(_Literal):
     val: str
+
+    @property
+    def py_val(self) -> dt.time:
+        return dt.time.fromisoformat(self.val)
 
 
 @dataclass(frozen=True)
 class DateTime(_Literal):
     val: str
 
+    @property
+    def py_val(self) -> dt.datetime:
+        return isoparse(self.val)
+
 
 @dataclass(frozen=True)
 class Duration(_Literal):
     val: str
+
+    @property
+    def py_val(self) -> dt.timedelta:
+        sign, days, hours, minutes, seconds = self.unpack()
+        delta = dt.timedelta(
+            days=float(days or 0),
+            hours=float(hours or 0),
+            minutes=float(minutes or 0),
+            seconds=float(seconds or 0),
+        )
+        if sign and sign == "-":
+            delta = -1 * delta
+        return delta
 
     def unpack(
         self,
@@ -102,10 +153,18 @@ class Duration(_Literal):
 class GUID(_Literal):
     val: str
 
+    @property
+    def py_val(self) -> UUID:
+        return UUID(self.val)
+
 
 @dataclass(frozen=True)
 class List(_Literal):
     val: ListType[_Literal]
+
+    @property
+    def py_val(self) -> list:
+        return [v.py_val for v in self.val]
 
 
 ###############################################################################

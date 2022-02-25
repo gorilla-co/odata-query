@@ -1,9 +1,6 @@
-import datetime as dt
 import operator
-import uuid
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from dateutil.parser import isoparse
 from django.db.models import Exists, F, Model, OuterRef, Q, Value, functions
 from django.db.models.expressions import Expression
 
@@ -50,57 +47,48 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
     def visit_Integer(self, node: ast.Integer) -> Value:
         ":meta private:"
-        return Value(int(node.val))
+        return Value(node.py_val)
 
     def visit_Float(self, node: ast.Float) -> Value:
         ":meta private:"
-        return Value(float(node.val))
+        return Value(node.py_val)
 
     def visit_Boolean(self, node: ast.Boolean) -> Value:
         ":meta private:"
-        return Value(node.val == "true")
+        return Value(node.py_val)
 
     def visit_String(self, node: ast.String) -> Value:
         ":meta private:"
-        return Value(node.val)
+        return Value(node.py_val)
 
     def visit_Date(self, node: ast.Date) -> Value:
         ":meta private:"
         try:
-            return Value(dt.date.fromisoformat(node.val))
+            return Value(node.py_val)
         except ValueError:
             raise ex.ValueException(node.val)
 
     def visit_DateTime(self, node: ast.DateTime) -> Value:
         ":meta private:"
         try:
-            return Value(isoparse(node.val))
+            return Value(node.py_val)
         except ValueError:
             raise ex.ValueException(node.val)
 
     def visit_Time(self, node: ast.Time) -> Value:
         ":meta private:"
         try:
-            return Value(dt.time.fromisoformat(node.val))
+            return Value(node.py_val)
         except ValueError:
             raise ex.ValueException(node.val)
 
     def visit_Duration(self, node: ast.Duration) -> Value:
         ":meta private:"
-        sign, days, hours, minutes, seconds = node.unpack()
-        td = dt.timedelta(
-            days=float(days or 0),
-            hours=float(hours or 0),
-            minutes=float(minutes or 0),
-            seconds=float(seconds or 0),
-        )
-        if sign and sign == "-":
-            td = -1 * td
-        return Value(td)
+        return Value(node.py_val)
 
     def visit_GUID(self, node: ast.GUID) -> Value:
         ":meta private:"
-        return uuid.UUID(node.val)
+        return node.py_val
 
     def visit_List(self, node: ast.List) -> List:
         ":meta private:"
