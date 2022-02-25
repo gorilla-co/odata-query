@@ -6,9 +6,10 @@ Implemented with `SLY <https://sly.readthedocs.io/en/latest/>`_.
 """
 
 import re
-from typing import List
+from typing import List, Optional
 
 from sly import Lexer, Parser
+from sly.lex import Token
 
 from . import ast, exceptions
 
@@ -96,7 +97,7 @@ class ODataLexer(Lexer):
     literals = {"(", ")", ",", "/", ":"}
     reflags = re.I
 
-    def error(self, token):
+    def error(self, token: Token):
         """
         Error handler during tokenization
 
@@ -337,7 +338,7 @@ class ODataParser(Parser):
         ("left", IN),
     )
 
-    def error(self, token):
+    def error(self, token: Optional[Token]):
         """
         Error handler during parsing.
 

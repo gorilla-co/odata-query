@@ -1,3 +1,8 @@
+from typing import Any, Optional
+
+from sly.lex import Token
+
+
 class ODataException(Exception):
     """
     Base class for all exceptions in this library.
@@ -19,7 +24,7 @@ class TokenizingException(ODataSyntaxError):
     Thrown when the lexer cannot tokenize the query.
     """
 
-    def __init__(self, token):
+    def __init__(self, token: Token):
         self.token = token
         super().__init__(f"Failed to tokenize at: {token}")
 
@@ -29,7 +34,7 @@ class ParsingException(ODataSyntaxError):
     Thrown when the parser cannot parse the query.
     """
 
-    def __init__(self, token, eof: bool = False):
+    def __init__(self, token: Optional[Token], eof: bool = False):
         self.token = token
         self.eof = eof
         super().__init__(f"Failed to parse at: {token}")
@@ -95,9 +100,9 @@ class ArgumentTypeException(FunctionCallException):
 
     def __init__(
         self,
-        function_name: str = None,
-        expected_type: str = None,
-        actual_type: str = None,
+        function_name: Optional[str] = None,
+        expected_type: Optional[str] = None,
+        actual_type: Optional[str] = None,
     ):
         self.function_name = function_name
         self.expected_type = expected_type
@@ -132,7 +137,7 @@ class ValueException(ODataException):
     Thrown when a value has an invalid value, such as an invalid datetime.
     """
 
-    def __init__(self, value):
+    def __init__(self, value: Any):
         self.value = value
         super().__init__(f"Invalid value: {value}")
 

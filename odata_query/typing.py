@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 def typecheck(
     node: ast._Node, expected_type: Union[Type, Tuple[Type, ...]], field_name: str
-):
+) -> None:
     """
     Checks that the inferred type of ``node`` is (one) of ``expected_type``, and
     raises :class:`ArgumentTypeException` if not.

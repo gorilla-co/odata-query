@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from . import ast
 from .grammar import ODataLexer, ODataParser  # type: ignore
@@ -20,7 +20,12 @@ class AliasRewriter(NodeTransformer):
             the default one.
     """
 
-    def __init__(self, field_aliases: Dict[str, str], lexer=None, parser=None):
+    def __init__(
+        self,
+        field_aliases: Dict[str, str],
+        lexer: Optional[ODataLexer] = None,
+        parser: Optional[ODataParser] = None,
+    ):
         self.field_aliases = field_aliases
 
         if not lexer:
