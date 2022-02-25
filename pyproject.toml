@@ -20,6 +20,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
     "Topic :: Software Development :: Compilers"
 ]
+include = ["odata_query/py.typed"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
