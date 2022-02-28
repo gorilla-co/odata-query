@@ -1,4 +1,3 @@
-# type: ignore
 """
 Implementation of a subset of the
 `OData formal grammar <https://docs.oasis-open.org/odata/odata/v4.01/csprd06/abnf/odata-abnf-construction-rules.txt>`_ .
@@ -6,12 +5,14 @@ Implemented with `SLY <https://sly.readthedocs.io/en/latest/>`_.
 """
 
 import re
-from typing import List, Optional
+from typing import Any, Callable, List, Optional, TypeVar, Union
 
 from sly import Lexer, Parser
 from sly.lex import Token
 
 from . import ast, exceptions
+
+RuleDecorator = TypeVar("RuleDecorator", bound=Callable[..., Any])
 
 _RWS = r"\s+"
 _INTEGER = r"[+-]?\d+"
@@ -63,39 +64,42 @@ ODATA_FUNCTIONS = {
 
 class ODataLexer(Lexer):
     tokens = {
-        ODATA_IDENTIFIER,
-        NULL,
-        STRING,
-        GUID,
-        DATETIME,
-        DATE,
-        TIME,
-        DURATION,
-        DECIMAL,
-        INTEGER,
-        BOOLEAN,
-        ADD,
-        SUB,
-        MUL,
-        DIV,
-        MOD,
-        UMINUS,
-        AND,
-        OR,
-        NOT,
-        EQ,
-        NE,
-        LT,
-        LE,
-        GT,
-        GE,
-        IN,
-        ANY,
-        ALL,
-        WS,
+        "ODATA_IDENTIFIER",
+        "NULL",
+        "STRING",
+        "GUID",
+        "DATETIME",
+        "DATE",
+        "TIME",
+        "DURATION",
+        "DECIMAL",
+        "INTEGER",
+        "BOOLEAN",
+        "ADD",
+        "SUB",
+        "MUL",
+        "DIV",
+        "MOD",
+        "UMINUS",
+        "AND",
+        "OR",
+        "NOT",
+        "EQ",
+        "NE",
+        "LT",
+        "LE",
+        "GT",
+        "GE",
+        "IN",
+        "ANY",
+        "ALL",
+        "WS",
     }
     literals = {"(", ")", ",", "/", ":"}
     reflags = re.I
+
+    # Ensure MyPy doesn't lose its mind:
+    _: Callable[..., Callable[[RuleDecorator], RuleDecorator]]
 
     def error(self, token: Token):
         """
@@ -328,15 +332,18 @@ class ODataParser(Parser):
     # See: https://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/part2-url-conventions/odata-v4.0-errata03-os-part2-url-conventions-complete.html#_Toc453752358
     # OData 5.1.1.14 Operator Precedence
     precedence = (
-        ("left", OR),
-        ("left", AND),
-        ("left", EQ, NE),
-        ("left", GT, GE, LT, LE),
-        ("left", ADD, SUB),
-        ("left", MUL, DIV, MOD),
-        ("right", NOT, UMINUS),
-        ("left", IN),
+        ("left", "OR"),
+        ("left", "AND"),
+        ("left", "EQ", "NE"),
+        ("left", "GT", "GE", "LT", "LE"),
+        ("left", "ADD", "SUB"),
+        ("left", "MUL", "DIV", "MOD"),
+        ("right", "NOT", "UMINUS"),
+        ("left", "IN"),
     )
+
+    # Ensure MyPy doesn't lose its mind:
+    _: Callable[..., Callable[[RuleDecorator], RuleDecorator]]
 
     def error(self, token: Optional[Token]):
         """
@@ -355,7 +362,7 @@ class ODataParser(Parser):
         ":meta private:"
         return p.common_expr
 
-    @_("primitive_literal", "first_member_expr", "list_expr")
+    @_("primitive_literal", "first_member_expr", "list_expr")  # type:ignore[no-redef]
     def common_expr(self, p):
         ":meta private:"
         return p[0]
@@ -384,7 +391,7 @@ class ODataParser(Parser):
         ":meta private:"
         return [p[0], p[4]]
 
-    @_('list_items BWS "," BWS common_expr')
+    @_('list_items BWS "," BWS common_expr')  # type:ignore[no-redef]
     def list_items(self, p):
         ":meta private:"
         p.list_items.append(p.common_expr)
@@ -399,7 +406,7 @@ class ODataParser(Parser):
         # Therefore we follow Python syntax: a single item list has a comma at the end.
         return ast.List([p.common_expr])
 
-    @_('"(" BWS list_items BWS ")"')
+    @_('"(" BWS list_items BWS ")"')  # type:ignore[no-redef]
     def list_expr(self, p):
         ":meta private:"
         return ast.List(p.list_items)
@@ -427,7 +434,7 @@ class ODataParser(Parser):
         ":meta private:"
         return p.entity_navigation_property
 
-    @_("entity_navigation_property single_navigation_expr")
+    @_("entity_navigation_property single_navigation_expr")  # type:ignore[no-redef]
     def property_path_expr(self, p):
         ":meta private:"
         if isinstance(p[1], ast.Attribute):
@@ -461,7 +468,7 @@ class ODataParser(Parser):
         ":meta private:"
         return p[1]
 
-    @_("entity_navigation_property collection_path_expr")
+    @_("entity_navigation_property collection_path_expr")  # type:ignore[no-redef]
     def property_path_expr(self, p):
         ":meta private:"
         return ast.CollectionLambda(p[0], *p[1])
@@ -479,7 +486,7 @@ class ODataParser(Parser):
         ":meta private:"
         return (p[0], p.lambda_)
 
-    @_('ANY "(" BWS ")"')
+    @_('ANY "(" BWS ")"')  # type:ignore[no-redef]
     def any_expr(self, p):
         ":meta private:"
         return (p[0], None)
@@ -492,12 +499,12 @@ class ODataParser(Parser):
     ####################################################################################
     # Arithmetic
     ####################################################################################
-    @_("UMINUS BWS common_expr")
+    @_("UMINUS BWS common_expr")  # type:ignore[no-redef]
     def common_expr(self, p):
         ":meta private:"
         return ast.UnaryOp(p[0], p[2])
 
-    @_(
+    @_(  # type:ignore[no-redef]
         "common_expr ADD common_expr",
         "common_expr SUB common_expr",
         "common_expr MUL common_expr",
@@ -511,7 +518,7 @@ class ODataParser(Parser):
     ####################################################################################
     # Comparisons
     ####################################################################################
-    @_(
+    @_(  # type:ignore[no-redef]
         "common_expr EQ common_expr",
         "common_expr NE common_expr",
         "common_expr LT common_expr",
@@ -527,12 +534,14 @@ class ODataParser(Parser):
     ####################################################################################
     # Boolean logic
     ####################################################################################
-    @_("common_expr AND common_expr", "common_expr OR common_expr")
+    @_(  # type:ignore[no-redef]
+        "common_expr AND common_expr", "common_expr OR common_expr"
+    )
     def common_expr(self, p):
         ":meta private:"
         return ast.BoolOp(p[1], p[0], p[2])
 
-    @_("NOT common_expr")
+    @_("NOT common_expr")  # type:ignore[no-redef]
     def common_expr(self, p):
         ":meta private:"
         return ast.UnaryOp(p[0], p.common_expr)
@@ -563,19 +572,19 @@ class ODataParser(Parser):
 
         return ast.Call(func, args)
 
-    @_('ODATA_IDENTIFIER "(" ")"')
+    @_('ODATA_IDENTIFIER "(" ")"')  # type:ignore[no-redef]
     def common_expr(self, p):
         ":meta private:"
         args = []
         return self._function_call(p[0], args)
 
-    @_('ODATA_IDENTIFIER "(" BWS common_expr BWS ")"')
+    @_('ODATA_IDENTIFIER "(" BWS common_expr BWS ")"')  # type:ignore[no-redef]
     def common_expr(self, p):
         ":meta private:"
         args = [p.common_expr]
         return self._function_call(p[0], args)
 
-    @_("ODATA_IDENTIFIER list_expr")
+    @_("ODATA_IDENTIFIER list_expr")  # type:ignore[no-redef]
     def common_expr(self, p):
         ":meta private:"
         args = p[1].val
@@ -598,7 +607,7 @@ class ODataParser(Parser):
         """
         pass
 
-    @_("empty")
+    @_("empty")  # type:ignore[no-redef]
     def BWS(self, p):
         """
         'Bad Whitespace'
@@ -624,7 +633,7 @@ class ODataParser(Parser):
         """
         exploded = self._explode_attr(attr)
         leaf_attr = exploded.pop()
-        owner = ast.Identifier(exploded.pop(0))
+        owner: Union[ast.Identifier, ast.Attribute] = ast.Identifier(exploded.pop(0))
         for inter in exploded:
             owner = ast.Attribute(owner, inter)
 
