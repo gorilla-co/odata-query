@@ -22,7 +22,7 @@ copyright = "2021, Gorillini NV"
 author = "Oliver Hofkens"
 
 # The full version, including alpha/beta/rc tags
-release = "0.4.2"
+release = "0.5.0"
 
 
 # -- General configuration ---------------------------------------------------
