@@ -6,9 +6,10 @@ Implemented with `SLY <https://sly.readthedocs.io/en/latest/>`_.
 """
 
 import re
-from typing import List
+from typing import List, Optional
 
 from sly import Lexer, Parser
+from sly.lex import Token
 
 from . import ast, exceptions
 
@@ -96,7 +97,7 @@ class ODataLexer(Lexer):
     literals = {"(", ")", ",", "/", ":"}
     reflags = re.I
 
-    def error(self, token):
+    def error(self, token: Token):
         """
         Error handler during tokenization
 
@@ -189,31 +190,31 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Arithmetic
     ####################################################################################
-    @_(fr"{_RWS}add{_RWS}")
+    @_(rf"{_RWS}add{_RWS}")
     def ADD(self, t):
         ":meta private:"
         t.value = ast.Add()
         return t
 
-    @_(fr"{_RWS}sub{_RWS}")
+    @_(rf"{_RWS}sub{_RWS}")
     def SUB(self, t):
         ":meta private:"
         t.value = ast.Sub()
         return t
 
-    @_(fr"{_RWS}mul{_RWS}")
+    @_(rf"{_RWS}mul{_RWS}")
     def MUL(self, t):
         ":meta private:"
         t.value = ast.Mult()
         return t
 
-    @_(fr"{_RWS}div{_RWS}")
+    @_(rf"{_RWS}div{_RWS}")
     def DIV(self, t):
         ":meta private:"
         t.value = ast.Div()
         return t
 
-    @_(fr"{_RWS}mod{_RWS}")
+    @_(rf"{_RWS}mod{_RWS}")
     def MOD(self, t):
         ":meta private:"
         t.value = ast.Mod()
@@ -228,19 +229,19 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Boolean logic
     ####################################################################################
-    @_(fr"{_RWS}and{_RWS}")
+    @_(rf"{_RWS}and{_RWS}")
     def AND(self, t):
         ":meta private:"
         t.value = ast.And()
         return t
 
-    @_(fr"{_RWS}or{_RWS}")
+    @_(rf"{_RWS}or{_RWS}")
     def OR(self, t):
         ":meta private:"
         t.value = ast.Or()
         return t
 
-    @_(fr"not{_RWS}")
+    @_(rf"not{_RWS}")
     def NOT(self, t):
         ":meta private:"
         t.value = ast.Not()
@@ -249,43 +250,43 @@ class ODataLexer(Lexer):
     ####################################################################################
     # Comparators
     ####################################################################################
-    @_(fr"{_RWS}eq{_RWS}")
+    @_(rf"{_RWS}eq{_RWS}")
     def EQ(self, t):
         ":meta private:"
         t.value = ast.Eq()
         return t
 
-    @_(fr"{_RWS}ne{_RWS}")
+    @_(rf"{_RWS}ne{_RWS}")
     def NE(self, t):
         ":meta private:"
         t.value = ast.NotEq()
         return t
 
-    @_(fr"{_RWS}lt{_RWS}")
+    @_(rf"{_RWS}lt{_RWS}")
     def LT(self, t):
         ":meta private:"
         t.value = ast.Lt()
         return t
 
-    @_(fr"{_RWS}le{_RWS}")
+    @_(rf"{_RWS}le{_RWS}")
     def LE(self, t):
         ":meta private:"
         t.value = ast.LtE()
         return t
 
-    @_(fr"{_RWS}gt{_RWS}")
+    @_(rf"{_RWS}gt{_RWS}")
     def GT(self, t):
         ":meta private:"
         t.value = ast.Gt()
         return t
 
-    @_(fr"{_RWS}ge{_RWS}")
+    @_(rf"{_RWS}ge{_RWS}")
     def GE(self, t):
         ":meta private:"
         t.value = ast.GtE()
         return t
 
-    @_(fr"{_RWS}in{_RWS}")
+    @_(rf"{_RWS}in{_RWS}")
     def IN(self, t):
         ":meta private:"
         t.value = ast.In()
@@ -337,7 +338,7 @@ class ODataParser(Parser):
         ("left", IN),
     )
 
-    def error(self, token):
+    def error(self, token: Optional[Token]):
         """
         Error handler during parsing.
 

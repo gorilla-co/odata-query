@@ -302,7 +302,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         return functions.StrIndex(self.visit(first), self.visit(second)) - 1
 
     def djangofunc_substring(
-        self, fullstr: ast._Node, index: ast._Node, nchars: ast._Node = None
+        self, fullstr: ast._Node, index: ast._Node, nchars: Optional[ast._Node] = None
     ) -> functions.Substr:
         ":meta private:"
         # Add 1 because OData is 0-indexed while SQL is 1-indexed

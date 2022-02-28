@@ -1,5 +1,5 @@
 import operator
-from typing import Any, Callable, List, Type, Union
+from typing import Any, Callable, List, Optional, Type, Union
 
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -251,7 +251,7 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
         return handler(*node.args)
 
-    def visit_CollectionLambda(self, node: ast.CollectionLambda):
+    def visit_CollectionLambda(self, node: ast.CollectionLambda) -> ClauseElement:
         ":meta private:"
         owner_prop = self.visit(node.owner)
         collection_model = inspect(owner_prop).property.entity.class_
@@ -302,7 +302,7 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
         return functions_ext.strpos(self.visit(first), self.visit(second)) - 1
 
     def func_substring(
-        self, fullstr: ast._Node, index: ast._Node, nchars: ast._Node = None
+        self, fullstr: ast._Node, index: ast._Node, nchars: Optional[ast._Node] = None
     ) -> functions.Function:
         ":meta private:"
         # Add 1 because OData is 0-indexed while SQL is 1-indexed

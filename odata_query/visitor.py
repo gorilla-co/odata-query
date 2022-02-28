@@ -30,7 +30,7 @@ class NodeVisitor:
     used instead.
     """
 
-    def visit(self, node: ast._Node):
+    def visit(self, node: ast._Node) -> Any:
         """
         Looks for an explicit node visiting method on ``self``,
         otherwise calls :func:`generic_visit`.
@@ -82,4 +82,4 @@ class NodeTransformer(NodeVisitor):
 
             new_kwargs[field] = new_val
 
-        return type(node)(**new_kwargs)  # type: ignore
+        return type(node)(**new_kwargs)

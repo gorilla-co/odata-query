@@ -443,3 +443,10 @@ def test_common_expr(expression: str, expected_ast):
 def test_bad_function_calls(func_call: str, expected_exception):
     with pytest.raises(expected_exception):
         parse(func_call, "common_expr")
+
+
+def test_lexer_error():
+    lexer = ODataLexer()
+
+    with pytest.raises(exceptions.TokenizingException):
+        list(lexer.tokenize("<>%&#@"))
