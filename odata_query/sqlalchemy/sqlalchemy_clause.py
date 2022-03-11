@@ -340,19 +340,19 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def func_day(self, field: ast._Node) -> functions.Function:
         ":meta private:"
-        return extract(self.visit(field), "day")
+        return extract("day", self.visit(field))
 
     def func_hour(self, field: ast._Node) -> functions.Function:
         ":meta private:"
-        return extract(self.visit(field), "hour")
+        return extract("hour", self.visit(field))
 
     def func_minute(self, field: ast._Node) -> functions.Function:
         ":meta private:"
-        return extract(self.visit(field), "minute")
+        return extract("minute", self.visit(field))
 
     def func_month(self, field: ast._Node) -> functions.Function:
         ":meta private:"
-        return extract(self.visit(field), "month")
+        return extract("month", self.visit(field))
 
     def func_now(self) -> functions.Function:
         ":meta private:"
@@ -360,7 +360,7 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def func_second(self, field: ast._Node) -> functions.Function:
         ":meta private:"
-        return extract(self.visit(field), "second")
+        return extract("second", self.visit(field))
 
     def func_time(self, field: ast._Node) -> functions.Function:
         ":meta private:"
@@ -368,7 +368,7 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
 
     def func_year(self, field: ast._Node) -> functions.Function:
         ":meta private:"
-        return extract(self.visit(field), "year")
+        return extract("year", self.visit(field))
 
     def func_ceiling(self, field: ast._Node) -> functions.Function:
         ":meta private:"
