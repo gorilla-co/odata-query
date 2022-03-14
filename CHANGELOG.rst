@@ -10,7 +10,16 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 [Unreleased]
 ------------
 
+Changed
+^^^^^^^
+
 * Deps; Upgraded pytest.
+
+Fixed
+^^^^^
+
+* SQLAlchemy; Fixed datetime extract functions.
+
 
 [0.5.1] - 2022-02-28
 --------------------
