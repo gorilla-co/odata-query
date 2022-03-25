@@ -56,6 +56,9 @@ def sample_data_sess(db_session):
         ),
         (BlogPost, "comments/author eq 0", 0),
         (BlogPost, "substring(content, 0) eq 'test'", 0),
+        (BlogPost, "year(published_at) eq 2019", 1),
+        # GITHUB-19
+        (BlogPost, "contains(title, 'Query') eq true", 1),
     ],
 )
 def test_query_with_odata(

@@ -1,14 +1,36 @@
 import operator
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type, Union
+from uuid import UUID
 
-from django.db.models import Exists, F, Model, OuterRef, Q, Value, functions
+import django
+from django.db.models import (
+    Case,
+    Exists,
+    F,
+    Model,
+    OuterRef,
+    Q,
+    Value,
+    When,
+    functions,
+    lookups,
+)
 from django.db.models.expressions import Expression
 
 from odata_query import ast, exceptions as ex, typing, utils, visitor
 
+from .django_q_ext import NotEqual
 from .utils import reverse_relationship
 
+DJANGO_LT_4 = django.VERSION[0] < 4
+
 COMPARISON_INVERT = {
+    lookups.Exact: lookups.Exact,
+    NotEqual: NotEqual,
+    lookups.LessThan: lookups.GreaterThan,
+    lookups.LessThanOrEqual: lookups.GreaterThanOrEqual,
+    lookups.GreaterThan: lookups.LessThan,
+    lookups.GreaterThanOrEqual: lookups.LessThanOrEqual,
     ast.Eq: ast.Eq,
     ast.NotEq: ast.NotEq,
     ast.Lt: ast.Gt,
@@ -30,6 +52,20 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
     def __init__(self, root_model: Type[Model]):
         self.root_model = root_model
         self.queryset_annotations: Dict[str, Expression] = {}
+
+        # Keep track of the depth of `visit` calls, so we know when we should
+        # turn the Django expression into a final `Q` object.
+        self._depth: int = 0
+
+    def visit(self, node: ast._Node) -> Any:
+        self._depth += 1
+        res = super().visit(node)
+        self._depth -= 1
+
+        if self._depth == 0:
+            res = self._ensure_q(res)
+
+        return res
 
     def visit_Identifier(self, node: ast.Identifier) -> F:
         ":meta private:"
@@ -88,7 +124,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
     def visit_GUID(self, node: ast.GUID) -> Value:
         ":meta private:"
-        return node.py_val
+        return Value(node.py_val)
 
     def visit_List(self, node: ast.List) -> List:
         ":meta private:"
@@ -124,69 +160,53 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
         return op(left, right)
 
-    def visit_Eq(self, node: ast.Eq) -> str:
+    def visit_Eq(self, node: ast.Eq) -> Type[lookups.Lookup]:
         ":meta private:"
-        return "__exact"
+        return lookups.Exact
 
-    def visit_NotEq(self, node: ast.NotEq) -> str:
+    def visit_NotEq(self, node: ast.NotEq) -> Type[lookups.Lookup]:
         ":meta private:"
-        return "__ne"
+        return NotEqual
 
-    def visit_Lt(self, node: ast.Lt) -> str:
+    def visit_Lt(self, node: ast.Lt) -> Type[lookups.Lookup]:
         ":meta private:"
-        return "__lt"
+        return lookups.LessThan
 
-    def visit_LtE(self, node: ast.LtE) -> str:
+    def visit_LtE(self, node: ast.LtE) -> Type[lookups.Lookup]:
         ":meta private:"
-        return "__lte"
+        return lookups.LessThanOrEqual
 
-    def visit_Gt(self, node: ast.Gt) -> str:
+    def visit_Gt(self, node: ast.Gt) -> Type[lookups.Lookup]:
         ":meta private:"
-        return "__gt"
+        return lookups.GreaterThan
 
-    def visit_GtE(self, node: ast.GtE) -> str:
+    def visit_GtE(self, node: ast.GtE) -> Type[lookups.Lookup]:
         ":meta private:"
-        return "__gte"
+        return lookups.GreaterThanOrEqual
 
-    def visit_In(self, node: ast.In) -> str:
+    def visit_In(self, node: ast.In) -> Type[lookups.Lookup]:
         ":meta private:"
-        return "__in"
+        return lookups.In
 
-    def visit_Compare(self, node: ast.Compare) -> Q:
+    def visit_Compare(self, node: ast.Compare) -> lookups.Lookup:
         ":meta private:"
+        lhs = self.visit(node.left)
+
         # Special case: comparison to NULL => isnull=True/False
         # Should not be wrapped with Value(True/False)
         # See: https://github.com/django/django/blob/0aacbdcf27b258387643b033352e99e6103abda8/django/db/models/lookups.py#L515
         if isinstance(node.right, ast.Null):
-            lhs = self._attempt_keywordify(node.left)
-            if not lhs:
-                raise ex.TypeException(node.comparator.__class__.__name__, "null")
-            q_keyword = lhs + "__isnull"
             if isinstance(node.comparator, ast.Eq):
-                return Q(**{q_keyword: True})
+                return lookups.IsNull(lhs, True)
             elif isinstance(node.comparator, ast.NotEq):
-                return Q(**{q_keyword: False})
+                return lookups.IsNull(lhs, False)
             else:
                 raise ex.TypeException(node.comparator.__class__.__name__, "null")
 
-        # Need an identifier on any side to make a Django Q:
-        keyword = self._attempt_keywordify(node.left)
-        if not keyword:
-            # No keyword on the left, try the right:
-            keyword = self._attempt_keywordify(node.right)
-            if keyword:
-                # Keyword on right, flip the comparison so it's left now:
-                node = self._flip_comparison(node)
-            else:
-                # No keywords at all, cannot continue:
-                raise ex.TypeException(
-                    node.comparator.__class__.__name__, str(node.left)
-                )
+        django_cls = self.visit(node.comparator)
+        rhs = self.visit(node.right)
 
-        q_keyword = keyword + self.visit(node.comparator)
-        query = Q(**{q_keyword: self.visit(node.right)})
-
-        return query
+        return django_cls(lhs, rhs)
 
     def visit_And(self, node: ast.And) -> Callable[[Q, Q], Q]:
         ":meta private:"
@@ -206,6 +226,10 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         if isinstance(right, (F, Value)):
             raise ex.TypeException(node.op.__class__.__name__, right)
 
+        if DJANGO_LT_4:
+            left = self._ensure_q(left)
+            right = self._ensure_q(right)
+
         op = self.visit(node.op)
 
         return op(left, right)
@@ -219,19 +243,23 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         mod = self.visit(node.op)
         val = self.visit(node.operand)
 
+        # Can only apply `~` to Q objects:
+        val = self._ensure_q(val)
+
         try:
             return mod(val)
         except TypeError:
             raise ex.TypeException(node.op.__class__.__name__, val)
 
-    def visit_Call(self, node: ast.Call) -> Q:
+    def visit_Call(self, node: ast.Call) -> Union[Expression, Q]:
         ":meta private:"
         try:
             q_gen = getattr(self, "djangofunc_" + node.func.name.lower())
         except AttributeError:
             raise ex.UnsupportedFunctionException(node.func.name)
 
-        return q_gen(*node.args)
+        res = q_gen(*node.args)
+        return res
 
     def visit_CollectionLambda(self, node: ast.CollectionLambda) -> Q:
         ":meta private:"
@@ -274,17 +302,23 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         else:
             raise NotImplementedError()
 
-    def djangofunc_contains(self, field: ast._Node, substr: ast._Node) -> Q:
+    def djangofunc_contains(
+        self, field: ast._Node, substr: ast._Node
+    ) -> lookups.Contains:
         ":meta private:"
-        return self._substr_function(field, substr, "contains")
+        return self._substr_function(field, substr, lookups.Contains)
 
-    def djangofunc_startswith(self, field: ast._Node, substr: ast._Node) -> Q:
+    def djangofunc_startswith(
+        self, field: ast._Node, substr: ast._Node
+    ) -> lookups.StartsWith:
         ":meta private:"
-        return self._substr_function(field, substr, "startswith")
+        return self._substr_function(field, substr, lookups.StartsWith)
 
-    def djangofunc_endswith(self, field: ast._Node, substr: ast._Node) -> Q:
+    def djangofunc_endswith(
+        self, field: ast._Node, substr: ast._Node
+    ) -> lookups.EndsWith:
         ":meta private:"
-        return self._substr_function(field, substr, "endswith")
+        return self._substr_function(field, substr, lookups.EndsWith)
 
     def djangofunc_length(self, arg: ast._Node) -> functions.Length:
         ":meta private:"
@@ -312,15 +346,11 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
             self.visit(nchars) if nchars else None,
         )
 
-    def djangofunc_matchespattern(self, field: ast._Node, pattern: ast._Node) -> Q:
+    def djangofunc_matchespattern(
+        self, field: ast._Node, pattern: ast._Node
+    ) -> lookups.Regex:
         ":meta private:"
-        lhs = self._attempt_keywordify(field)
-        if not lhs:
-            raise ex.ArgumentTypeException("matchespattern")
-        q_keyword = lhs + "__regex"
-        pattern = self.visit(pattern)
-
-        return Q(**{q_keyword: pattern})
+        return lookups.Regex(self.visit(field), self.visit(pattern))
 
     def djangofunc_tolower(self, field: ast._Node) -> functions.Lower:
         ":meta private:"
@@ -383,37 +413,105 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         return functions.Round(self.visit(field))
 
     def _substr_function(
-        self, field: ast._Node, substr: ast._Node, django_func: str
-    ) -> Q:
+        self, field: ast._Node, substr: ast._Node, django_func: Type[Expression]
+    ) -> Expression:
         ":meta private:"
         typing.typecheck(field, (ast.Identifier, ast.String), "field")
         typing.typecheck(substr, ast.String, "substring")
 
-        lhs = self._attempt_keywordify(field)
-        if not lhs:
-            raise ex.ArgumentTypeException(django_func)
-        q_keyword = lhs + "__" + django_func
-        substring = self.visit(substr)
+        return django_func(self.visit(field), self.visit(substr))
 
-        return Q(**{q_keyword: substring})
+    def _fix_uuid(self, node: Any) -> Any:
+        # Workaround for Django <4 'Value is not a valid UUID':
+        if isinstance(node, Value) and isinstance(node.value, UUID):
+            return node.value
 
-    def _attempt_keywordify(self, node: ast._Node) -> Optional[str]:
-        ":meta private:"
-        if isinstance(node, ast._Literal):
+        if isinstance(node, list):
+            return [self._fix_uuid(i) for i in node]
+
+        return node
+
+    def _ensure_q(self, node: Any) -> Q:
+        """
+        Turn a given Django `Lookup`, `Expression` or `Function` into a `Q` object.
+        This is mainly necessary for Django <4 where the nodes cannot be directly
+        used in `Q` objects and have to be expressed as `Q(keyword=value)`.
+        """
+        if isinstance(node, (Q, Exists)):
+            return node
+
+        if not DJANGO_LT_4:
+            return Q(node)
+
+        # Need an identifier on any side to make a Django Q:
+        keyword = self._attempt_keywordify(node.lhs)
+        if not keyword:
+            # No keyword on the left, try the right:
+            keyword = self._attempt_keywordify(node.rhs)
+            if keyword:
+                node = self._flip_comparison(node)
+            else:
+                # No keywords at all, cannot continue:
+                raise ex.TypeException(node.__class__.__name__, str(node.lhs))
+
+        if isinstance(node, lookups.Lookup):
+            keyword += "__" + node.lookup_name
+
+        node.rhs = self._fix_uuid(node.rhs)
+        query = Q(**{keyword: node.rhs})
+        return query
+
+    def _attempt_keywordify(self, node: Any) -> Optional[str]:
+        """
+        Try to turn ``node`` into a keyword argument that can be used in a Django
+        ``Q`` object. E.g. a ``contains(name, 'something')`` node should resolve
+        to the keyword ``name__contains``.
+
+        :meta private:
+        """
+        # A literal can not be expressed as a keyword.
+        if isinstance(node, (ast._Literal, Value)):
             return None
 
-        res = self.visit(node)
+        # If an AST Node was passed, visit it to get something Django related:
+        if isinstance(node, ast._Node):
+            res = self.visit(node)
+        else:
+            res = node
+
+        # If `res` is already wrapped in a `Q` object, we need to unwrap it first.
+        # This is the case with expressions that are filterable by themselves,
+        # such as `contains(a, b)`.
+        if isinstance(res, Q) and isinstance(res.children[0], Expression):
+            res = res.children[0]
+
+        # An `F` expression is a field or expression known to Django, and can
+        # be used as a keyword.
         if isinstance(res, F):
             return res.name
 
+        # Field lookups are also easily expressed as keywords.
         if (
             hasattr(res, "lookup_name")
             and hasattr(res, "lhs")
             and hasattr(res.lhs, "name")
+            # Expressions with a `rhs` have parameters and should be handled
+            # as function calls:
+            and not getattr(res, "rhs", False)
         ):
             return res.lhs.name + "__" + res.lookup_name
 
-        # Attempt to make this a QS annotation (SQL alias):
+        # Lookups with parameters need to be wrapped in a `CASE WHEN` expression
+        if isinstance(res, lookups.Lookup):
+            identity = self._gen_annotation_name(res)
+            if DJANGO_LT_4:
+                res = self._ensure_q(res)
+            res = Case(When(res, then=True), default=False)
+            self.queryset_annotations[identity] = res
+            return identity
+
+        # For more complicated expressions, we can add them to the query as a
+        # QuerySet annotation. This annotation is then valid as a keyword:
         if isinstance(res, Expression):
             identity = self._gen_annotation_name(res)
             self.queryset_annotations[identity] = res
@@ -446,14 +544,14 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         )
 
     @staticmethod
-    def _flip_comparison(comp: ast.Compare) -> ast.Compare:
+    def _flip_comparison(comp: lookups.Lookup) -> lookups.Lookup:
         """
         Flip a comparison left-to-right. E.g.: (4 > version_id) becomes (version_id < 4)
 
         :meta private:
         """
-        new_op = COMPARISON_INVERT[type(comp.comparator)]()
-        new_left = comp.right
-        new_right = comp.left
+        new_op = COMPARISON_INVERT[type(comp)]
+        new_left = comp.rhs
+        new_right = comp.lhs
 
-        return ast.Compare(new_op, new_left, new_right)
+        return new_op(new_left, new_right)
