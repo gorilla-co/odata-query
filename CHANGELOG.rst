@@ -7,6 +7,28 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_\ ,
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+
+Unreleased
+----------
+
+Changed
+^^^^^^^
+
+* Django; Rework Django query transformer to use Django query nodes more.
+  With the release of Django 4, we can now use ``Lookup``, ``Function``, and other
+  Django query nodes in queries directly instead of relying on the keyworded
+  syntax. For older Django versions, we can still transform those nodes to the
+  keyworded syntax.
+* Deps; Upgraded Sphinx and the ReadTheDocs theme.
+
+
+Fixed
+^^^^^
+
+* Django; Support comparisons of boolean funcs to booleans
+  (e.g. ``contains(a, 'b') eq true``)
+
+
 [0.5.2] - 2022-03-14
 --------------------
 
