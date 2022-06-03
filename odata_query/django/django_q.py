@@ -24,7 +24,7 @@ from .utils import reverse_relationship
 
 DJANGO_LT_4 = django.VERSION[0] < 4
 
-COMPARISON_INVERT = {
+COMPARISON_FLIP = {
     lookups.Exact: lookups.Exact,
     NotEqual: NotEqual,
     lookups.LessThan: lookups.GreaterThan,
@@ -550,7 +550,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
         :meta private:
         """
-        new_op = COMPARISON_INVERT[type(comp)]
+        new_op = COMPARISON_FLIP[type(comp)]
         new_left = comp.rhs
         new_right = comp.lhs
 
