@@ -1,6 +1,6 @@
 import operator
-from typing import Any, Callable, List, Optional, Type, Union
 from collections.abc import Collection
+from typing import Any, Callable, List, Optional, Type, Union
 
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.attributes import InstrumentedAttribute
