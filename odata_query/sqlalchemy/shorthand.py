@@ -23,7 +23,7 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
     """
     lexer = ODataLexer()
     parser = ODataParser()
-    model = query.column_descriptions[0]["entity"]
+    model = [col["entity"] for col in query.column_descriptions]
 
     ast = parser.parse(lexer.tokenize(odata_query))
     transformer = AstToSqlAlchemyClauseVisitor(model)
