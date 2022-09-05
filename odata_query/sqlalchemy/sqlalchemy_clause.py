@@ -1,5 +1,6 @@
 import operator
 from typing import Any, Callable, List, Optional, Type, Union
+from collections.abc import Collection
 
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -40,16 +41,22 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
         root_model: The root model of the query.
     """
 
-    def __init__(self, root_model: Type[DeclarativeMeta]):
-        self.root_model = root_model
+    def __init__(
+        self, root_model: Union[Type[DeclarativeMeta], List[Type[DeclarativeMeta]]]
+    ):
+        if not isinstance(root_model, Collection):
+            root_model = [root_model]
+        self.root_models = root_model
         self.join_relationships: List[InstrumentedAttribute] = []
 
     def visit_Identifier(self, node: ast.Identifier) -> ColumnClause:
         ":meta private:"
-        try:
-            return getattr(self.root_model, node.name)
-        except AttributeError:
-            raise ex.InvalidFieldException(node.name)
+        for model in self.root_models:
+            try:
+                return getattr(model, node.name)
+            except AttributeError:
+                pass
+        raise ex.InvalidFieldException(node.name)
 
     def visit_Attribute(self, node: ast.Attribute) -> ColumnClause:
         ":meta private:"
