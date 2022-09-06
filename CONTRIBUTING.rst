@@ -126,7 +126,7 @@ contacting the maintainers directly. Keeping communication public means
 everybody can benefit and learn.
 
 
-.. _Issues: https://github.com/gorillaco/odata-query/issues
-.. _Pull Requests: https://github.com/gorillaco/odata-query/pulls
+.. _Issues: https://github.com/gorilla-co/odata-query/issues
+.. _Pull Requests: https://github.com/gorilla-co/odata-query/pulls
 .. _poetry: https://python-poetry.org/
 .. _tox: https://tox.readthedocs.io/en/latest/index.html
