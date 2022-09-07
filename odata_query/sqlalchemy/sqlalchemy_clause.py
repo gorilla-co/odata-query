@@ -1,6 +1,6 @@
 import operator
-from typing import Any, Callable, List, Optional, Type, Union
 from collections.abc import Collection
+from typing import Any, Callable, List, Optional, Type, Union
 
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -46,12 +46,22 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
     ):
         if not isinstance(root_model, Collection):
             root_model = [root_model]
-        self.root_models = root_model
+        self._models = {model.__name__: model for model in root_model}
+        self._models_set = {model.__name__ for model in root_model}
         self.join_relationships: List[InstrumentedAttribute] = []
 
     def visit_Identifier(self, node: ast.Identifier) -> ColumnClause:
         ":meta private:"
-        for model in self.root_models:
+        # check if the namespace is listed
+        namespaces = self._models_set.intersection(node.namespace)
+        for namespace in namespaces:
+            try:
+                return getattr(self._models[namespace], node.name)
+            except AttributeError:
+                # This is probably a hard error...
+                pass
+        # Check all the models. Duplicate names are are an issue
+        for model in self._models.values():
             try:
                 return getattr(model, node.name)
             except AttributeError:
