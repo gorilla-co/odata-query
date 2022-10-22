@@ -1,10 +1,10 @@
 from typing import List
 
+from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
 from sqlalchemy.sql.expression import ClauseElement, Select
 
-from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
-
 from .sqlalchemy_clause import AstToSqlAlchemyClauseVisitor
+from .sqlalchemy_core import AstToSqlAlchemyCoreVisitor
 
 
 def _get_joined_attrs(query: Select) -> List[str]:
@@ -34,3 +34,21 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
             query = query.join(j)
 
     return query.filter(where_clause)
+
+
+def apply_odata_core(table: ClauseElement, odata_query: str) -> ClauseElement:
+    """
+    Shorthand for applying an OData query to a SQLAlchemy core.
+
+    Args:
+        query: SQLAlchemy query to apply the OData query to.
+        odata_query: OData query string.
+    Returns:
+        ClauseElement: The modified query
+    """
+    lexer = ODataLexer()
+    parser = ODataParser()
+    ast = parser.parse(lexer.tokenize(odata_query))
+    transformer = AstToSqlAlchemyCoreVisitor(table)
+    where_clause = transformer.visit(ast)
+    return where_clause

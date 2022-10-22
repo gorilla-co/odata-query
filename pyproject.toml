@@ -49,7 +49,7 @@ django = ["django"]
 docs = ["sphinx", "sphinx-rtd-theme"]
 linting = ["flake8", "black", "isort", "mypy", "types-python-dateutil", "yamllint", "vulture"]
 sqlalchemy = ["sqlalchemy"]
-testing = ["pytest", "pytest-cov"]
+testing = ["pytest", "pytest-cov", "pytest-xdist"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
