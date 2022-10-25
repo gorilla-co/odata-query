@@ -192,6 +192,11 @@ def tz(offset: int) -> dt.tzinfo:
         ("authors/name eq 'Ruben'", Author.name == "Ruben"),
         ("authors/comments/content eq 'Cool!'", Comment.content == "Cool!"),
         ("contains(comments/content, 'Cool')", Comment.content.contains("Cool")),
+        # GITHUB-19
+        (
+            "contains(title, 'TEST') eq true",
+            BlogPost.title.contains("TEST") == True,  # noqa:E712
+        ),
     ],
 )
 def test_odata_filter_to_sqlalchemy_query(
