@@ -17,7 +17,7 @@ Added
 * A new visitor that roundtrips OData AST back to an OData query string.
 
 
-[0.6.0] - 2022-06-03
+[0.6.0] - 2022-10-28
 --------------------
 
 Changed
