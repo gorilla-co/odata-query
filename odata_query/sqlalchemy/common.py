@@ -1,17 +1,12 @@
 import operator
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, Optional, Union
 
-from sqlalchemy.inspection import inspect
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.orm.decl_api import DeclarativeMeta
-from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql import functions
 from sqlalchemy.sql.expression import (
     BinaryExpression,
     BindParameter,
     BooleanClauseList,
     ClauseElement,
-    ColumnClause,
     False_,
     Null,
     True_,
@@ -26,48 +21,15 @@ from sqlalchemy.sql.expression import (
 )
 from sqlalchemy.types import Date, Time
 
-from odata_query import ast, exceptions as ex, typing, utils, visitor
+from odata_query import ast, exceptions as ex, typing, visitor
 
 from . import functions_ext
 
 
-class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
+class _CommonVisitors(visitor.NodeVisitor):
     """
-    :class:`NodeVisitor` that transforms an :term:`AST` into a SQLAlchemy query
-    filter clause.
-
-    Args:
-        root_model: The root model of the query.
+    Contains the visitor methods that are equal between SQLAlchemy Core and ORM.
     """
-
-    def __init__(self, root_model: Type[DeclarativeMeta]):
-        self.root_model = root_model
-        self.join_relationships: List[InstrumentedAttribute] = []
-
-    def visit_Identifier(self, node: ast.Identifier) -> ColumnClause:
-        ":meta private:"
-        try:
-            return getattr(self.root_model, node.name)
-        except AttributeError:
-            raise ex.InvalidFieldException(node.name)
-
-    def visit_Attribute(self, node: ast.Attribute) -> ColumnClause:
-        ":meta private:"
-        rel_attr = self.visit(node.owner)
-        # Owner is an InstrumentedAttribute, hopefully of a relationship.
-        # But we need the model pointed to by the relationship.
-        prop_inspect = inspect(rel_attr).property
-        if not isinstance(prop_inspect, RelationshipProperty):
-            # TODO: new exception:
-            raise ValueError(f"Not a relationship: {node.owner}")
-        self.join_relationships.append(rel_attr)
-
-        # We'd like to reference the column on the related class:
-        owner_cls = prop_inspect.entity.class_
-        try:
-            return getattr(owner_cls, node.attr)
-        except AttributeError:
-            raise ex.InvalidFieldException(node.attr)
 
     def visit_Null(self, node: ast.Null) -> Null:
         ":meta private:"
@@ -195,20 +157,6 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
         ":meta private:"
         return lambda a, b: a.in_(b)
 
-    def visit_Compare(self, node: ast.Compare) -> BinaryExpression:
-        ":meta private:"
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-        op = self.visit(node.comparator)
-
-        # If a node is a `relationship` representing a single foreign key,
-        # the client meant to compare the foreign key, not the related object.
-        # E.g. In "blogpost/author eq 1", left should be "blogpost/author_id"
-        left = self._maybe_sub_relationship_with_foreign_key(left)
-        right = self._maybe_sub_relationship_with_foreign_key(right)
-
-        return op(left, right)
-
     def visit_And(
         self, node: ast.And
     ) -> Callable[[ClauseElement, ClauseElement], BooleanClauseList]:
@@ -250,30 +198,6 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
             raise ex.UnsupportedFunctionException(node.func.name)
 
         return handler(*node.args)
-
-    def visit_CollectionLambda(self, node: ast.CollectionLambda) -> ClauseElement:
-        ":meta private:"
-        owner_prop = self.visit(node.owner)
-        collection_model = inspect(owner_prop).property.entity.class_
-
-        if node.lambda_:
-            # For the lambda, we want to strip the identifier off, because
-            # we will execute this as a subquery in the wanted model's context.
-            subq_ast = utils.expression_relative_to_identifier(
-                node.lambda_.identifier, node.lambda_.expression
-            )
-            subq_transformer = self.__class__(collection_model)
-            subquery_filter = subq_transformer.visit(subq_ast)
-        else:
-            subquery_filter = None
-
-        if isinstance(node.operator, ast.Any):
-            return owner_prop.any(subquery_filter)
-        else:
-            # For an ALL query, invert both the filter and the EXISTS:
-            if node.lambda_:
-                subquery_filter = ~subquery_filter
-            return ~owner_prop.any(subquery_filter)
 
     def func_contains(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
         ":meta private:"
@@ -394,23 +318,3 @@ class AstToSqlAlchemyClauseVisitor(visitor.NodeVisitor):
         op = getattr(identifier, func)
 
         return op(substring)
-
-    def _maybe_sub_relationship_with_foreign_key(
-        self, elem: ClauseElement
-    ) -> ClauseElement:
-        """
-        If the given ClauseElement is a `relationship` with a single ForeignKey,
-        replace it with the `ForeignKey` itself.
-
-        :meta private:
-        """
-        try:
-            prop_inspect = inspect(elem).property
-            if isinstance(prop_inspect, RelationshipProperty):
-                foreign_key = prop_inspect._calculated_foreign_keys
-                if len(foreign_key) == 1:
-                    return next(iter(foreign_key))
-        except Exception:
-            pass
-
-        return elem

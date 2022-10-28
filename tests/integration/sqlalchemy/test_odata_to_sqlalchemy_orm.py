@@ -5,7 +5,7 @@ from sqlalchemy.sql import functions
 from sqlalchemy.sql.expression import cast, extract, literal
 from sqlalchemy.types import Date, Time
 
-from odata_query.sqlalchemy import AstToSqlAlchemyClauseVisitor, functions_ext
+from odata_query.sqlalchemy import AstToSqlAlchemyOrmVisitor, functions_ext
 
 from .models import Author, BlogPost, Comment
 
@@ -203,7 +203,7 @@ def test_odata_filter_to_sqlalchemy_query(
     odata_query: str, expected_q: str, lexer, parser
 ):
     ast = parser.parse(lexer.tokenize(odata_query))
-    transformer = AstToSqlAlchemyClauseVisitor(BlogPost)
+    transformer = AstToSqlAlchemyOrmVisitor(BlogPost)
     res_q = transformer.visit(ast)
 
     assert res_q.compare(expected_q), (str(res_q), str(expected_q))

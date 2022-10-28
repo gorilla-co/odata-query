@@ -4,8 +4,8 @@ from sqlalchemy.sql.expression import ClauseElement, Select
 
 from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
 
-from .sqlalchemy_clause import AstToSqlAlchemyClauseVisitor
-from .sqlalchemy_core import AstToSqlAlchemyCoreVisitor
+from .core import AstToSqlAlchemyCoreVisitor
+from .orm import AstToSqlAlchemyOrmVisitor
 
 
 def _get_joined_attrs(query: Select) -> List[str]:
@@ -24,10 +24,10 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
     """
     lexer = ODataLexer()
     parser = ODataParser()
-    model = query.column_descriptions[0]["entity"]
+    model = query.columns_clause_froms[0].entity_namespace
 
     ast = parser.parse(lexer.tokenize(odata_query))
-    transformer = AstToSqlAlchemyClauseVisitor(model)
+    transformer = AstToSqlAlchemyOrmVisitor(model)
     where_clause = transformer.visit(ast)
 
     for j in transformer.join_relationships:
@@ -37,7 +37,7 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
     return query.filter(where_clause)
 
 
-def apply_odata_core(table: ClauseElement, odata_query: str) -> ClauseElement:
+def apply_odata_core(query: ClauseElement, odata_query: str) -> ClauseElement:
     """
     Shorthand for applying an OData query to a SQLAlchemy core.
 
@@ -49,7 +49,9 @@ def apply_odata_core(table: ClauseElement, odata_query: str) -> ClauseElement:
     """
     lexer = ODataLexer()
     parser = ODataParser()
+    table = query.columns_clause_froms[0]
+
     ast = parser.parse(lexer.tokenize(odata_query))
     transformer = AstToSqlAlchemyCoreVisitor(table)
     where_clause = transformer.visit(ast)
-    return where_clause
+    return query.filter(where_clause)
