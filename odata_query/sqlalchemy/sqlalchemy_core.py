@@ -2,17 +2,29 @@ import operator
 from typing import Any, Callable, Optional, Type, Union
 
 import sqlalchemy as sa
-from odata_query import ast
-from odata_query import exceptions as ex
-from odata_query import typing, utils, visitor
 from sqlalchemy.inspection import inspect
 from sqlalchemy.sql import functions
-from sqlalchemy.sql.expression import (BinaryExpression, BindParameter,
-                                       BooleanClauseList, ClauseElement,
-                                       ColumnClause, False_, Null, True_, and_,
-                                       cast, extract, false, literal, null,
-                                       or_, true,)
+from sqlalchemy.sql.expression import (
+    BinaryExpression,
+    BindParameter,
+    BooleanClauseList,
+    ClauseElement,
+    ColumnClause,
+    False_,
+    Null,
+    True_,
+    and_,
+    cast,
+    extract,
+    false,
+    literal,
+    null,
+    or_,
+    true,
+)
 from sqlalchemy.types import Date, Time
+
+from odata_query import ast, exceptions as ex, typing, utils, visitor
 
 from . import functions_ext
 
@@ -57,7 +69,7 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
 
     def visit_Boolean(self, node: ast.Boolean) -> Union[True_, False_]:
         """:meta private:"""
-        if node.val == 'true':
+        if node.val == "true":
             return true()
         else:
             return false()
@@ -195,9 +207,7 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
         op = self.visit(node.op)
         return op(left, right)
 
-    def visit_Not(
-        self, node: ast.Not
-    ) -> Callable[[ClauseElement], ClauseElement]:
+    def visit_Not(self, node: ast.Not) -> Callable[[ClauseElement], ClauseElement]:
         """:meta private:"""
         return operator.invert
 
@@ -214,15 +224,13 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> ClauseElement:
         """:meta private:"""
         try:
-            handler = getattr(self, 'func_' + node.func.name.lower())
+            handler = getattr(self, "func_" + node.func.name.lower())
         except AttributeError:
             raise ex.UnsupportedFunctionException(node.func.name)
 
         return handler(*node.args)
 
-    def visit_CollectionLambda(
-        self, node: ast.CollectionLambda
-    ) -> ClauseElement:
+    def visit_CollectionLambda(self, node: ast.CollectionLambda) -> ClauseElement:
         """:meta private:"""
         owner_prop = self.visit(node.owner)
         collection_model = inspect(owner_prop).property.entity.class_
@@ -246,23 +254,17 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
                 subquery_filter = ~subquery_filter
             return ~owner_prop.any(subquery_filter)
 
-    def func_contains(
-        self, field: ast._Node, substr: ast._Node
-    ) -> ClauseElement:
+    def func_contains(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
         """:meta private:"""
-        return self._substr_function(field, substr, 'contains')
+        return self._substr_function(field, substr, "contains")
 
-    def func_startswith(
-        self, field: ast._Node, substr: ast._Node
-    ) -> ClauseElement:
+    def func_startswith(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
         """:meta private:"""
-        return self._substr_function(field, substr, 'startswith')
+        return self._substr_function(field, substr, "startswith")
 
-    def func_endswith(
-        self, field: ast._Node, substr: ast._Node
-    ) -> ClauseElement:
+    def func_endswith(self, field: ast._Node, substr: ast._Node) -> ClauseElement:
         """:meta private:"""
-        return self._substr_function(field, substr, 'endswith')
+        return self._substr_function(field, substr, "endswith")
 
     def func_length(self, arg: ast._Node) -> functions.Function:
         """:meta private:"""
@@ -272,9 +274,7 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
         """:meta private:"""
         return functions.concat(*[self.visit(arg) for arg in args])
 
-    def func_indexof(
-        self, first: ast._Node, second: ast._Node
-    ) -> functions.Function:
+    def func_indexof(self, first: ast._Node, second: ast._Node) -> functions.Function:
         """:meta private:"""
         # TODO: Highly dialect dependent, might want to implement in GenericFunction:
         # Subtract 1 because OData is 0-indexed while SQL is 1-indexed
@@ -295,9 +295,7 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
                 self.visit(nchars),
             )
         else:
-            return functions_ext.substr(
-                self.visit(fullstr), self.visit(index) + 1
-            )
+            return functions_ext.substr(self.visit(fullstr), self.visit(index) + 1)
 
     def func_matchespattern(
         self, field: ast._Node, pattern: ast._Node
@@ -324,19 +322,19 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
 
     def func_day(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
-        return extract('day', self.visit(field))
+        return extract("day", self.visit(field))
 
     def func_hour(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
-        return extract('hour', self.visit(field))
+        return extract("hour", self.visit(field))
 
     def func_minute(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
-        return extract('minute', self.visit(field))
+        return extract("minute", self.visit(field))
 
     def func_month(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
-        return extract('month', self.visit(field))
+        return extract("month", self.visit(field))
 
     def func_now(self) -> functions.Function:
         """:meta private:"""
@@ -344,7 +342,7 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
 
     def func_second(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
-        return extract('second', self.visit(field))
+        return extract("second", self.visit(field))
 
     def func_time(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
@@ -352,7 +350,7 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
 
     def func_year(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
-        return extract('year', self.visit(field))
+        return extract("year", self.visit(field))
 
     def func_ceiling(self, field: ast._Node) -> functions.Function:
         """:meta private:"""
@@ -370,8 +368,8 @@ class AstToSqlAlchemyCoreVisitor(visitor.NodeVisitor):
         self, field: ast._Node, substr: ast._Node, func: str
     ) -> ClauseElement:
         """:meta private:"""
-        typing.typecheck(field, (ast.Identifier, ast.String), 'field')
-        typing.typecheck(substr, ast.String, 'substring')
+        typing.typecheck(field, (ast.Identifier, ast.String), "field")
+        typing.typecheck(substr, ast.String, "substring")
 
         identifier = self.visit(field)
         substring = self.visit(substr)

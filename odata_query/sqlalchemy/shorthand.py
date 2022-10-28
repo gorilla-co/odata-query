@@ -1,7 +1,8 @@
 from typing import List
 
-from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
 from sqlalchemy.sql.expression import ClauseElement, Select
+
+from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
 
 from .sqlalchemy_clause import AstToSqlAlchemyClauseVisitor
 from .sqlalchemy_core import AstToSqlAlchemyCoreVisitor
