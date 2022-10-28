@@ -18,6 +18,13 @@ Added
 * SQLAlchemy: Support for SQLAlchemy Core through a new visitor.
 
 
+Changed
+^^^^^^^
+
+* Some lower-level SQLAlchemy related modules have been reorganized to
+  facilitate SQLAlchemy Core support.
+
+
 [0.6.0] - 2022-10-28
 --------------------
 
