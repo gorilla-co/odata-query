@@ -21,6 +21,7 @@ Submodules
    odata_query.exceptions
    odata_query.grammar
    odata_query.rewrite
+   odata_query.roundtrip
    odata_query.typing
    odata_query.utils
    odata_query.visitor

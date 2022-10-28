@@ -6,6 +6,10 @@ Basic Usage
 
 The easiest way to add OData filtering to a SQLAlchemy query is with the shorthand:
 
+
+SQLAlchemy ORM
+^^^^^^^^^^^^^^
+
 .. code-block:: python
 
     from odata_query.sqlalchemy import apply_odata_query
@@ -14,6 +18,27 @@ The easiest way to add OData filtering to a SQLAlchemy query is with the shortha
     odata_query = "name eq 'test'"  # This will usually come from a query string parameter.
 
     query = apply_odata_query(orm_query, odata_query)
+    results = session.execute(query).scalars().all()
+
+
+SQLAlchemy Core
+^^^^^^^^^^^^^^^
+
+.. attention::
+
+   Basic support for SQLAlchemy Core is new since version 0.7.0.
+   It currently does not support relationship traversal or ``any``/``all``
+   yet. Those operations will raise a ``NotImplementedException``.
+
+
+.. code-block:: python
+
+    from odata_query.sqlalchemy import apply_odata_core
+
+    core_query = select(MyTable)  # This is any form of Query or Selectable.
+    odata_query = "name eq 'test'"  # This will usually come from a query string parameter.
+
+    query = apply_odata_query(core_query, odata_query)
     results = session.execute(query).scalars().all()
 
 
@@ -42,21 +67,42 @@ Building a Query Filter
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 To get from an :term:`AST` to something SQLAlchemy can use, you'll need to use the
-:py:class:`odata_query.sqlalchemy.sqlalchemy_clause.AstToSqlAlchemyClauseVisitor`.
-It needs to know about the 'root model' of your query in order to see which fields
-exists and how objects are related.
+:py:class:`odata_query.sqlalchemy.orm.AstToSqlAlchemyOrmVisitor` (ORM mode) or
+the :py:class:`odata_query.sqlalchemy.core.AstToSqlAlchemyCoreVisitor` (Core
+mode).
+It needs to know about the 'root model' or table of your query in order to see
+which fields exists and how objects are related.
 
+
+SQLAlchemy ORM
+""""""""""""""
 
 .. code-block:: python
 
-    from odata_query.sqlalchemy.sqlalchemy_clause import AstToSqlAlchemyClauseVisitor
+    from odata_query.sqlalchemy.orm import AstToSqlAlchemyOrmVisitor
 
-    visitor = AstToSqlAlchemyClauseVisitor(MyModel)
+    visitor = AstToSqlAlchemyOrmVisitor(MyModel)
+    query_filter = visitor.visit(ast)
+
+SQLAlchemy Core
+"""""""""""""""
+
+.. code-block:: python
+
+    from odata_query.sqlalchemy.core import AstToSqlAlchemyCoreVisitor
+
+    visitor = AstToSqlAlchemyCoreVisitor(MyTable)
     query_filter = visitor.visit(ast)
 
 
 Optional: Joins
 ^^^^^^^^^^^^^^^
+
+.. attention::
+
+   Relationship traversal and automatic joins are not yet supported for
+   SQLAlchemy Core mode.
+
 
 If your query spans relationships, the ``AstToSqlAlchemyClauseVisitor`` will
 generate join statements. For the query to work, these will need to be
@@ -77,4 +123,3 @@ Finally, we're ready to run the query:
 
     query = query.where(query_filter)
     results = s.execute(query).scalars().all()
-

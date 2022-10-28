@@ -58,6 +58,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         self._depth: int = 0
 
     def visit(self, node: ast._Node) -> Any:
+        """:meta private:"""
         self._depth += 1
         res = super().visit(node)
         self._depth -= 1

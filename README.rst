@@ -79,7 +79,7 @@ Example for Django:
     results = query.all()
 
 
-Example for SQLAlchemy:
+Example for SQLAlchemy ORM:
 
 .. code-block:: python
 
@@ -89,6 +89,18 @@ Example for SQLAlchemy:
     odata_query = "name eq 'test'"  # This will usually come from a query string parameter.
 
     query = apply_odata_query(orm_query, odata_query)
+    results = session.execute(query).scalars().all()
+
+Example for SQLAlchemy Core:
+
+.. code-block:: python
+
+    from odata_query.sqlalchemy import apply_odata_core
+
+    core_query = select(MyTable)  # This is any form of Query or Selectable.
+    odata_query = "name eq 'test'"  # This will usually come from a query string parameter.
+
+    query = apply_odata_core(core_query, odata_query)
     results = session.execute(query).scalars().all()
 
 .. splitinclude-1

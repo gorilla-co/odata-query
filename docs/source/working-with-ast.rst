@@ -37,8 +37,8 @@ expressions for example, might look like this:
 
 This isn't the most useful implementation... For some more realistic examples,
 take a look at the :py:class:`odata_query.django.django_q.AstToDjangoQVisitor` or
-the :py:class:`odata_query.sqlalchemy.sqlalchemy_clause.AstToSqlAlchemyClauseVisitor`
-implementations. They transform an :term:`AST` to Django and SQLAlchemy queries
+the :py:class:`odata_query.sqlalchemy.orm.AstToSqlAlchemyOrmVisitor`
+implementations. They transform an :term:`AST` to Django and SQLAlchemy ORM queries
 respectively.
 
 
@@ -76,6 +76,18 @@ comparisons to 'greater-than' and vice-versa:
 An interesting concrete implementation in ``odata-query`` is the
 :py:class:`odata_query.rewrite.AliasRewriter`. This transformer looks for
 aliases in identifiers and attributes, and replaces them with their full names.
+
+
+
+Included Visitors
+-----------------
+
+
+.. autoclass:: odata_query.django.django_q.AstToDjangoQVisitor
+.. autoclass:: odata_query.sqlalchemy.orm.AstToSqlAlchemyOrmVisitor
+.. autoclass:: odata_query.sqlalchemy.core.AstToSqlAlchemyCoreVisitor
+.. autoclass:: odata_query.rewrite.AliasRewriter
+.. autoclass:: odata_query.roundtrip.AstToODataVisitor
 
 
 .. _The Visitor Pattern: https://en.wikipedia.org/wiki/Visitor_pattern
