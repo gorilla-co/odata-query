@@ -15,6 +15,7 @@ Added
 ^^^^^
 
 * A new visitor that roundtrips OData AST back to an OData query string.
+* SQLAlchemy: Support for SQLAlchemy Core through a new visitor.
 
 
 [0.6.0] - 2022-10-28
