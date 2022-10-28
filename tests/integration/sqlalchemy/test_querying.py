@@ -1,10 +1,10 @@
 import datetime as dt
-from typing import Type
+from typing import Callable, Type
 
 import pytest
 from sqlalchemy import select
 
-from odata_query.sqlalchemy import apply_odata_query
+from odata_query.sqlalchemy import apply_odata_core, apply_odata_query
 
 from .models import Author, Base, BlogPost, Comment
 
@@ -61,9 +61,35 @@ def sample_data_sess(db_session):
         (BlogPost, "contains(title, 'Query') eq true", 1),
     ],
 )
+@pytest.mark.parametrize(
+    "apply_func",
+    [
+        pytest.param(apply_odata_query, id="ORM"),
+        pytest.param(apply_odata_core, id="Core"),
+    ],
+)
 def test_query_with_odata(
-    model: Type[Base], query: str, exp_results: int, sample_data_sess
+    model: Type[Base],
+    query: str,
+    exp_results: int,
+    apply_func: Callable,
+    sample_data_sess,
 ):
-    q = apply_odata_query(select(model), query)
+    # ORM mode:
+    if apply_func is apply_odata_query:
+        base_q = select(model)
+
+    # Core mode:
+    elif apply_func is apply_odata_core:
+        base_q = select(model.__table__)
+
+    else:
+        raise ValueError(apply_func)
+
+    try:
+        q = apply_func(base_q, query)
+    except NotImplementedError:
+        pytest.xfail("Not implemented yet.")
+
     results = sample_data_sess.execute(q).scalars().all()
     assert len(results) == exp_results

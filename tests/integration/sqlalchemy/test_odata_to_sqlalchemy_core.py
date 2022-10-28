@@ -241,9 +241,21 @@ def tz(offset: int) -> dt.tzinfo:
             cast(BlogPost.c.published_at, Date)
             == literal(dt.date(2019, 1, 1)) + -1 * dt.timedelta(days=1),
         ),
-        # ("authors/name eq 'Ruben'", Author.c.name == "Ruben"),
-        # ("authors/comments/content eq 'Cool!'", Comment.c.content == "Cool!"),
-        # ("contains(comments/content, 'Cool')", Comment.c.content.contains("Cool")),
+        pytest.param(
+            "authors/name eq 'Ruben'",
+            Author.c.name == "Ruben",
+            marks=pytest.mark.xfail(reason="Not implemented yet."),
+        ),
+        pytest.param(
+            "authors/comments/content eq 'Cool!'",
+            Comment.c.content == "Cool!",
+            marks=pytest.mark.xfail(reason="Not implemented yet."),
+        ),
+        pytest.param(
+            "contains(comments/content, 'Cool')",
+            Comment.c.content.contains("Cool"),
+            marks=pytest.mark.xfail(reason="Not implemented yet."),
+        ),
         # GITHUB-19
         (
             "contains(title, 'TEST') eq true",
