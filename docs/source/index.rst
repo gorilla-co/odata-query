@@ -10,6 +10,7 @@ Contents
    Getting Started <self>
    django
    sqlalchemy
+   sql
    parsing-odata
    working-with-ast
    glossary
@@ -29,4 +30,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
