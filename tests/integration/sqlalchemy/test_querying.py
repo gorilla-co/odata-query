@@ -35,6 +35,14 @@ def sample_data_sess(db_session):
     s.rollback()
 
 
+def apply_odata_query_bc_sqla1(*args, **kwargs):
+    """
+    Check for backwards compatibility with the "old style" of ORM querying.
+    See: GITHUB-34
+    """
+    return apply_odata_query(*args, **kwargs)
+
+
 @pytest.mark.parametrize(
     "model, query, exp_results",
     [
@@ -65,6 +73,7 @@ def sample_data_sess(db_session):
     "apply_func",
     [
         pytest.param(apply_odata_query, id="ORM"),
+        pytest.param(apply_odata_query_bc_sqla1, id="ORM 1.x"),
         pytest.param(apply_odata_core, id="Core"),
     ],
 )
@@ -78,6 +87,10 @@ def test_query_with_odata(
     # ORM mode:
     if apply_func is apply_odata_query:
         base_q = select(model)
+
+    # ORM mode 1.x:
+    elif apply_func is apply_odata_query_bc_sqla1:
+        base_q = sample_data_sess.query(model)
 
     # Core mode:
     elif apply_func is apply_odata_core:
