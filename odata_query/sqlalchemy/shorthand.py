@@ -1,5 +1,6 @@
 from typing import List
 
+from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ClauseElement, Select
 
 from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
@@ -24,6 +25,12 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
     """
     lexer = ODataLexer()
     parser = ODataParser()
+
+    if isinstance(query, Query):
+        # For now, we keep supporting the 1.x style of queries unofficially.
+        # GITHUB-34
+        query = query.__clause_element__()
+
     model = query.columns_clause_froms[0].entity_namespace
 
     ast = parser.parse(lexer.tokenize(odata_query))
