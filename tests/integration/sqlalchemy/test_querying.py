@@ -84,13 +84,17 @@ def test_query_with_odata(
     apply_func: Callable,
     sample_data_sess,
 ):
-    # ORM mode:
-    if apply_func is apply_odata_query:
-        base_q = select(model)
-
     # ORM mode 1.x:
-    elif apply_func is apply_odata_query_bc_sqla1:
+    if apply_func is apply_odata_query_bc_sqla1:
         base_q = sample_data_sess.query(model)
+        q = apply_func(base_q, query)
+        results = q.all()
+        assert len(results) == exp_results
+        return
+
+    # ORM mode:
+    elif apply_func is apply_odata_query:
+        base_q = select(model)
 
     # Core mode:
     elif apply_func is apply_odata_core:
