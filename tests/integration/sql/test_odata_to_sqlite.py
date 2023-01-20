@@ -1,6 +1,6 @@
 import pytest
 
-from odata_query import sql
+from odata_query import exceptions as ex, sql
 
 
 @pytest.mark.parametrize(
@@ -39,15 +39,15 @@ from odata_query import sql
             '"eac" > 1 AND ("eac" < 10 OR "eac" = 5) AND "eac" != 10',
         ),
         ("not (eac gt 10 and eac lt 20)", 'NOT ("eac" > 10 AND "eac" < 20)'),
-        ("eac gt 1 eq true", '("eac" > 1) = TRUE'),
-        ("true eq eac gt 1", 'TRUE = ("eac" > 1)'),
+        ("eac gt 1 eq true", '("eac" > 1) = 1'),
+        ("true eq eac gt 1", '1 = ("eac" > 1)'),
         ("eac add 10 gt 1000", '"eac" + 10 > 1000'),
         ("eac add 10 gt eac sub 10", '"eac" + 10 > "eac" - 10'),
         ("eac mul 10 div 10 eq eac", '"eac" * 10 / 10 = "eac"'),
         ("eac mod 10 add -1 le eac", '"eac" % 10 + -1 <= "eac"'),
         (
             "period_start gt 2020-01-01T00:00:00",
-            "\"period_start\" > FROM_ISO8601_TIMESTAMP('2020-01-01T00:00:00')",
+            "\"period_start\" > DATETIME('2020-01-01T00:00:00')",
         ),
         (
             "period_start add duration'P365D' ge period_end",
@@ -61,10 +61,13 @@ from odata_query import sql
             "period_start add duration'PT1S' ge period_end",
             '"period_start" + INTERVAL \'1\' SECOND >= "period_end"',
         ),
-        ("year(period_start) eq 2019", 'EXTRACT (YEAR FROM "period_start") = 2019'),
+        (
+            "year(period_start) eq 2019",
+            "CAST(STRFTIME('%Y', \"period_start\") AS INTEGER) = 2019",
+        ),
         (
             "period_end lt now() sub duration'P365D'",
-            "\"period_end\" < CURRENT_TIMESTAMP - INTERVAL '365' DAY",
+            "\"period_end\" < DATETIME('now') - INTERVAL '365' DAY",
         ),
         (
             "startswith(trim(meter_id), '999')",
@@ -72,30 +75,30 @@ from odata_query import sql
         ),
         (
             "year(date(now())) eq 2020",
-            "EXTRACT (YEAR FROM CAST (CURRENT_TIMESTAMP AS DATE)) = 2020",
+            "CAST(STRFTIME('%Y', DATE(DATETIME('now'))) AS INTEGER) = 2020",
         ),
         ("length(concat('abc', 'def')) lt 10", "LENGTH('abc' || 'def') < 10"),
         (
             "length(concat(('1', '2'), ('3', '4'))) eq 4",
-            "CARDINALITY(('1', '2') || ('3', '4')) = 4",
+            "LENGTH(('1', '2') || ('3', '4')) = 4",
         ),
         (
             "indexof(substring('abcdefghi', 3), 'hi') gt 1",
-            "POSITION('hi' IN SUBSTR('abcdefghi', 3 + 1)) - 1 > 1",
+            "INSTR(SUBSTR('abcdefghi', 3 + 1), 'hi') - 1 > 1",
         ),
         (
             "substring('hello', 1, 3) eq 'ell'",
             "SUBSTR('hello', 1 + 1, 3) = 'ell'",
         ),
-        ("substring((1, 2, 3), 1)", "SLICE((1, 2, 3), 1)"),
-        ("substring((1, 2, 3), 1, 1)", "SLICE((1, 2, 3), 1, 1)"),
+        ("substring((1, 2, 3), 1)", ex.UnsupportedFunctionException),
+        ("substring((1, 2, 3), 1, 1)", ex.UnsupportedFunctionException),
         (
             "contains(meter_id, sub_meter_id)",
             "\"meter_id\" LIKE '%' || \"sub_meter_id\" || '%'",
         ),
         (
             "year(supply_start_date) eq (year(now()) sub 1)",
-            'EXTRACT (YEAR FROM "supply_start_date") = EXTRACT (YEAR FROM CURRENT_TIMESTAMP) - 1',
+            "CAST(STRFTIME('%Y', \"supply_start_date\") AS INTEGER) = CAST(STRFTIME('%Y', DATETIME('now')) AS INTEGER) - 1",
         ),
         (
             "measurement_class eq 'C' and endswith(data_collector, 'rie')",
@@ -105,7 +108,7 @@ from odata_query import sql
 )
 def test_odata_filter_to_sql(odata_query: str, expected: str, lexer, parser):
     ast = parser.parse(lexer.tokenize(odata_query))
-    visitor = sql.AstToAthenaSqlVisitor()
+    visitor = sql.AstToSqliteSqlVisitor()
 
     if isinstance(expected, str):
         res = visitor.visit(ast)

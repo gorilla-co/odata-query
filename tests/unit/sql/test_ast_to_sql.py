@@ -50,7 +50,7 @@ from odata_query import ast, sql
     ],
 )
 def test_ast_to_sql(ast_input: ast._Node, sql_expected: str):
-    visitor = sql.AstToAthenaSqlVisitor()
+    visitor = sql.AstToSqlVisitor()
     res = visitor.visit(ast_input)
 
     assert res == sql_expected
@@ -59,115 +59,101 @@ def test_ast_to_sql(ast_input: ast._Node, sql_expected: str):
 @pytest.mark.parametrize(
     "func_name, args, sql_expected",
     [
-        ("concat", [ast.String("ab"), ast.String("cd")], "concat('ab', 'cd')"),
-        (
-            "concat",
-            [
-                ast.List([ast.String("a"), ast.String("b")]),
-                ast.List([ast.String("c")]),
-            ],
-            "concat(('a', 'b'), ('c'))",
-        ),
+        ("concat", [ast.String("ab"), ast.String("cd")], "'ab' || 'cd'"),
         (
             "contains",
             [ast.String("abc"), ast.String("b")],
-            "strpos('abc', 'b') > 0",
+            "'abc' LIKE '%b%'",
         ),
         (
             "endswith",
             [ast.String("abc"), ast.String("bc")],
-            "strpos('abc', 'bc') = length('abc') - length('bc') + 1",
+            "'abc' LIKE '%bc'",
         ),
         (
             "indexof",
             [ast.String("abc"), ast.String("bc")],
-            "strpos('abc', 'bc') - 1",
+            "POSITION('bc' IN 'abc') - 1",
         ),
-        ("length", [ast.String("abc")], "length('abc')"),
+        ("length", [ast.String("abc")], "CHAR_LENGTH('abc')"),
         (
             "length",
             [ast.List([ast.String("a"), ast.String("b")])],
-            "cardinality(('a', 'b'))",
+            "CARDINALITY(('a', 'b'))",
         ),
         (
             "startswith",
             [ast.String("abc"), ast.String("ab")],
-            "strpos('abc', 'ab') = 1",
+            "'abc' LIKE 'ab%'",
         ),
         (
             "substring",
             [ast.String("abc"), ast.Integer("1")],
-            "substr('abc', 1 + 1)",
+            "SUBSTRING('abc' FROM 1 + 1)",
         ),
         (
             "substring",
             [ast.String("abcdef"), ast.Integer("1"), ast.Integer("2")],
-            "substr('abcdef', 1 + 1, 2)",
+            "SUBSTRING('abcdef' FROM 1 + 1 FOR 2)",
         ),
-        (
-            "substring",
-            [ast.List([ast.String("a"), ast.String("b")]), ast.Integer("1")],
-            "slice(('a', 'b'), 1)",
-        ),
-        (
-            "substring",
-            [
-                ast.List([ast.String("a"), ast.String("b")]),
-                ast.Integer("1"),
-                ast.Integer("2"),
-            ],
-            "slice(('a', 'b'), 1, 2)",
-        ),
-        ("tolower", [ast.String("ABC")], "lower('ABC')"),
-        ("toupper", [ast.String("abc")], "upper('abc')"),
-        ("trim", [ast.String(" abc ")], "trim(' abc ')"),
+        ("tolower", [ast.String("ABC")], "LOWER('ABC')"),
+        ("toupper", [ast.String("abc")], "UPPER('abc')"),
+        ("trim", [ast.String(" abc ")], "TRIM(' abc ')"),
         (
             "year",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "year(from_iso8601_timestamp('2018-01-01T10:00:00'))",
+            "EXTRACT (YEAR FROM TIMESTAMP '2018-01-01 10:00:00')",
         ),
         (
             "month",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "month(from_iso8601_timestamp('2018-01-01T10:00:00'))",
+            "EXTRACT (MONTH FROM TIMESTAMP '2018-01-01 10:00:00')",
         ),
         (
             "day",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "day(from_iso8601_timestamp('2018-01-01T10:00:00'))",
+            "EXTRACT (DAY FROM TIMESTAMP '2018-01-01 10:00:00')",
         ),
         (
             "hour",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "hour(from_iso8601_timestamp('2018-01-01T10:00:00'))",
+            "EXTRACT (HOUR FROM TIMESTAMP '2018-01-01 10:00:00')",
         ),
         (
             "minute",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "minute(from_iso8601_timestamp('2018-01-01T10:00:00'))",
+            "EXTRACT (MINUTE FROM TIMESTAMP '2018-01-01 10:00:00')",
         ),
         (
             "date",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "date_trunc(day, from_iso8601_timestamp('2018-01-01T10:00:00'))",
+            "CAST (TIMESTAMP '2018-01-01 10:00:00' AS DATE)",
         ),
         ("now", [], "CURRENT_TIMESTAMP"),
-        ("round", [ast.Float("123.12")], "round(123.12)"),
-        ("floor", [ast.Float("123.12")], "floor(123.12)"),
-        ("ceiling", [ast.Float("123.12")], "ceiling(123.12)"),
+        ("round", [ast.Float("123.12")], "CAST (123.12 + 0.5 AS INTEGER)"),
         (
-            "hassubset",
-            [
-                ast.List([ast.String("a"), ast.String("b")]),
-                ast.List([ast.String("a")]),
-            ],
-            "cardinality(array_intersect(('a', 'b'), ('a'))) = cardinality(('a'))",
+            "floor",
+            [ast.Float("123.12")],
+            """CASE 123.12
+    WHEN > 0 CAST (123.12 AS INTEGER)
+    WHEN < 0 CAST (0 - (ABS(123.12) + 0.5) AS INTEGER))
+    ELSE 123.12
+END""",
+        ),
+        (
+            "ceiling",
+            [ast.Float("123.12")],
+            """CASE 123.12 - CAST (123.12 AS INTEGER)
+    WHEN > 0 123.12+1
+    WHEN < 0 123.12-1
+    ELSE 123.12
+END""",
         ),
     ],
 )
 def test_ast_to_sql_functions(func_name: str, args: List[ast._Node], sql_expected: str):
     inp_ast = ast.Call(ast.Identifier(func_name), args)
-    visitor = sql.AstToAthenaSqlVisitor()
+    visitor = sql.AstToSqlVisitor()
     res = visitor.visit(inp_ast)
 
     assert res == sql_expected

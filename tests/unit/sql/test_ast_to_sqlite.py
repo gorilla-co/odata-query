@@ -23,7 +23,7 @@ from odata_query import ast, sql
                 ast.Identifier("period_start"),
                 ast.Date("2019-01-01"),
             ),
-            "\"period_start\" < date('2019-01-01')",
+            "\"period_start\" < DATE('2019-01-01')",
         ),
         (
             ast.BoolOp(
@@ -63,15 +63,6 @@ def test_ast_to_sql(ast_input: ast._Node, sql_expected: str):
     [
         ("concat", [ast.String("ab"), ast.String("cd")], "'ab' || 'cd'"),
         (
-            "concat",
-            [
-                ast.String("a"),
-                ast.String("b"),
-                ast.String("c"),
-            ],
-            "'a' || 'b' || 'c'",
-        ),
-        (
             "contains",
             [ast.String("abc"), ast.String("b")],
             "'abc' LIKE '%b%'",
@@ -89,12 +80,12 @@ def test_ast_to_sql(ast_input: ast._Node, sql_expected: str):
         (
             "length",
             [ast.String("a")],
-            "length('a')",
+            "LENGTH('a')",
         ),
         (
             "length",
             [ast.Identifier("a")],
-            'length("a")',
+            'LENGTH("a")',
         ),
         (
             "startswith",
@@ -104,50 +95,50 @@ def test_ast_to_sql(ast_input: ast._Node, sql_expected: str):
         (
             "substring",
             [ast.String("abc"), ast.Integer("1")],
-            "substr('abc', 1 + 1)",
+            "SUBSTR('abc', 1 + 1)",
         ),
         (
             "substring",
             [ast.String("abcdef"), ast.Integer("1"), ast.Integer("2")],
-            "substr('abcdef', 1 + 1, 2)",
+            "SUBSTR('abcdef', 1 + 1, 2)",
         ),
-        ("tolower", [ast.String("ABC")], "lower('ABC')"),
-        ("toupper", [ast.String("abc")], "upper('abc')"),
-        ("trim", [ast.String(" abc ")], "trim(' abc ')"),
+        ("tolower", [ast.String("ABC")], "LOWER('ABC')"),
+        ("toupper", [ast.String("abc")], "UPPER('abc')"),
+        ("trim", [ast.String(" abc ")], "TRIM(' abc ')"),
         (
             "year",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "strftime('%y', datetime('2018-01-01T10:00:00'))",
+            "CAST(STRFTIME('%Y', DATETIME('2018-01-01T10:00:00')) AS INTEGER)",
         ),
         (
             "month",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "strftime('%m', datetime('2018-01-01T10:00:00'))",
+            "CAST(STRFTIME('%m', DATETIME('2018-01-01T10:00:00')) AS INTEGER)",
         ),
         (
             "day",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "strftime('%d', datetime('2018-01-01T10:00:00'))",
+            "CAST(STRFTIME('%d', DATETIME('2018-01-01T10:00:00')) AS INTEGER)",
         ),
         (
             "hour",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "strftime('%H', datetime('2018-01-01T10:00:00'))",
+            "CAST(STRFTIME('%H', DATETIME('2018-01-01T10:00:00')) AS INTEGER)",
         ),
         (
             "minute",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "strftime('%M', datetime('2018-01-01T10:00:00'))",
+            "CAST(STRFTIME('%M', DATETIME('2018-01-01T10:00:00')) AS INTEGER)",
         ),
         (
             "date",
             [ast.DateTime("2018-01-01T10:00:00")],
-            "date(datetime('2018-01-01T10:00:00'))",
+            "DATE(DATETIME('2018-01-01T10:00:00'))",
         ),
-        ("now", [], "datetime('now')"),
-        ("round", [ast.Float("123.12")], "round(123.12)"),
-        ("floor", [ast.Float("123.12")], "floor(123.12)"),
-        ("ceiling", [ast.Float("123.12")], "ceiling(123.12)"),
+        ("now", [], "DATETIME('now')"),
+        ("round", [ast.Float("123.12")], "TRUNC(123.12 + 0.5)"),
+        ("floor", [ast.Float("123.12")], "FLOOR(123.12)"),
+        ("ceiling", [ast.Float("123.12")], "CEILING(123.12)"),
     ],
 )
 def test_ast_to_sql_functions(func_name: str, args: List[ast._Node], sql_expected: str):
