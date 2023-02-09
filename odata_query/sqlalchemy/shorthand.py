@@ -44,7 +44,10 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
 
     existing_joins = _get_joined_attrs(query)
     for required_join in transformer.join_relationships:
-        if str(required_join) not in existing_joins and str(required_join.key) not in existing_joins:
+        if (
+            str(required_join) not in existing_joins
+            and str(required_join.key) not in existing_joins
+        ):
             query = query.join(required_join)
 
     return query.filter(where_clause)
