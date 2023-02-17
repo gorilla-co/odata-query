@@ -10,7 +10,9 @@ from .orm import AstToSqlAlchemyOrmVisitor
 
 
 def _get_joined_attrs(query: Select) -> List[str]:
-    return [str(join[0]) for join in query._setup_joins]
+    # use _legacy_setup_joins for legacy Query objects
+    setup_joins = getattr(query, "_legacy_setup_joins", query._setup_joins)
+    return [str(join[0]) for join in setup_joins]
 
 
 def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
@@ -40,9 +42,13 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
     transformer = AstToSqlAlchemyOrmVisitor(model)
     where_clause = transformer.visit(ast)
 
-    for j in transformer.join_relationships:
-        if str(j) not in _get_joined_attrs(query):
-            query = query.join(j)
+    existing_joins = _get_joined_attrs(query)
+    for required_join in transformer.join_relationships:
+        if (
+            str(required_join) not in existing_joins
+            and str(required_join.key) not in existing_joins
+        ):
+            query = query.join(required_join)
 
     return query.filter(where_clause)
 
