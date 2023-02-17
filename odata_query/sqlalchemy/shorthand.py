@@ -11,7 +11,9 @@ from .orm import AstToSqlAlchemyOrmVisitor
 
 def _get_joined_attrs(query: Select) -> List[str]:
     # use _legacy_setup_joins for legacy Query objects
-    setup_joins = getattr(query, "_legacy_setup_joins", query._setup_joins)
+    setup_joins = (
+        getattr(query, "_legacy_setup_joins", query._setup_joins) or query._setup_joins
+    )
     return [str(join[0]) for join in setup_joins]
 
 

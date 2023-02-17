@@ -110,3 +110,40 @@ def test_query_with_odata(
 
     results = sample_data_sess.execute(q).scalars().all()
     assert len(results) == exp_results
+
+
+@pytest.mark.parametrize(
+    "apply_func",
+    [
+        pytest.param(apply_odata_query, id="ORM"),
+        pytest.param(apply_odata_query_bc_sqla1, id="ORM 1.x"),
+    ],
+)
+def test_query_with_existing_join(apply_func, sample_data_sess):
+    """
+    GITHUB-37
+    """
+    odata_query = "author/name eq 'Gorilla'"
+    exp_results = 1
+
+    # ORM mode 1.x:
+    if apply_func is apply_odata_query_bc_sqla1:
+        base_q = sample_data_sess.query(Comment).join(
+            Author, Comment.author_id == Author.id
+        )
+        q = apply_func(base_q, odata_query)
+        results = q.all()
+        assert len(results) == exp_results
+        return
+
+    # ORM mode:
+    elif apply_func is apply_odata_query:
+        base_q = select(Comment).join(Comment.author)
+
+    else:
+        raise ValueError(apply_func)
+
+    q = apply_func(base_q, odata_query)
+
+    results = sample_data_sess.execute(q).scalars().all()
+    assert len(results) == exp_results
