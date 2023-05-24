@@ -15,6 +15,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: SQL",
+    "Programming Language :: Rust",
     "Topic :: Database",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
@@ -51,6 +52,13 @@ linting = ["flake8", "black", "isort", "mypy", "types-python-dateutil", "yamllin
 sqlalchemy = ["sqlalchemy"]
 testing = ["pytest", "pytest-cov", "pytest-xdist"]
 
+[tool.poetry.group.dev.dependencies]
+maturin = "^1.0.0"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "odata_query._odata_query"
+
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
