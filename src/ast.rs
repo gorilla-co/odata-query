@@ -11,7 +11,7 @@ pub enum Literal {
     Integer(i64), // sbyte, byte, int16, int32 ,int64
     String(String),
     Duration(String),
-    Binary(Box<[u8]>),
+    Binary(Vec<u8>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
