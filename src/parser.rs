@@ -1,10 +1,11 @@
 use crate::ast::{CommonExpr, Literal};
 use nom::branch::alt;
-use nom::bytes::complete::{tag, tag_no_case};
+use nom::bytes::complete::{is_not, tag, tag_no_case};
 use nom::character::complete::{char, digit1, one_of};
 use nom::combinator::{cut, map, opt, recognize, value, verify};
 use nom::error::{Error, ParseError};
-use nom::sequence::{pair, tuple};
+use nom::multi::many0;
+use nom::sequence::{delimited, pair, tuple};
 use nom::IResult;
 use nom::ParseTo;
 
@@ -29,6 +30,17 @@ pub fn parse_float(inp: &str) -> IResult<&str, f64> {
     }
 }
 
+pub fn parse_string(inp: &str) -> IResult<&str, String> {
+    let part = alt((
+        is_not("'"),
+        // Double SQUOTE within a string escapes to a single SQUOTE
+        value("'", tag("''")),
+    ));
+
+    let str_parts = delimited(char('\''), many0(part), char('\''));
+    map(str_parts, |p| p.join(""))(inp)
+}
+
 pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
     let null = value(Literal::Null, tag("null"));
 
@@ -45,7 +57,9 @@ pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
         value(Literal::Float(f64::NEG_INFINITY), tag("-INF")),
     ));
 
-    alt((null, bool, float, int))(inp)
+    let string = map(parse_string, Literal::String);
+
+    alt((null, bool, string, float, int))(inp)
 }
 
 pub fn parse(odata_query: &str) -> IResult<&str, CommonExpr> {
@@ -108,5 +122,18 @@ mod tests {
             Ok(("", Literal::Float(nan))) => assert!(nan.is_nan()),
             _ => assert!(false),
         };
+    }
+
+    #[test]
+    fn parse_string() {
+        assert_parsed_to(
+            parse_literal("'hello world'"),
+            Literal::String("hello world".to_string()),
+        );
+        assert_parsed_to(parse_literal("''"), Literal::String("".to_string()));
+        assert_parsed_to(
+            parse_literal("'g''day sir'"),
+            Literal::String("g'day sir".to_string()),
+        );
     }
 }
