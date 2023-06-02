@@ -1,8 +1,9 @@
 use crate::ast::{CommonExpr, Literal};
+use base64::{alphabet, engine, Engine as _};
 use nom::branch::alt;
-use nom::bytes::complete::{is_not, tag, tag_no_case, take_while_m_n};
+use nom::bytes::complete::{is_not, tag, tag_no_case, take_while, take_while_m_n};
 use nom::character::complete::{char, digit1, one_of};
-use nom::combinator::{cut, map, opt, recognize, value, verify};
+use nom::combinator::{cut, map, map_res, opt, recognize, value, verify};
 use nom::error::{Error, ParseError};
 use nom::multi::many0;
 use nom::sequence::{delimited, pair, tuple};
@@ -46,6 +47,10 @@ fn is_hex_digit(c: char) -> bool {
     c.is_digit(16)
 }
 
+fn is_base64url_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '='
+}
+
 pub fn parse_guid(inp: &str) -> IResult<&str, String> {
     let (i, guid_str) = recognize(tuple((
         take_while_m_n(8, 8, is_hex_digit),
@@ -60,6 +65,20 @@ pub fn parse_guid(inp: &str) -> IResult<&str, String> {
     )))(inp)?;
 
     Ok((i, guid_str.to_string()))
+}
+
+pub fn parse_binary(inp: &str) -> IResult<&str, Vec<u8>> {
+    let binval = take_while(is_base64url_char);
+    let parser = delimited(tag_no_case("binary'"), binval, char('\''));
+
+    // TODO: map base64::DecodeError onto a nom Error for clarity
+    map_res(parser, |b64| {
+        // We make no assumptions about how the client handles b64 padding:
+        let cfg = engine::GeneralPurposeConfig::new()
+            .with_decode_padding_mode(engine::DecodePaddingMode::Indifferent);
+        let engine = engine::GeneralPurpose::new(&alphabet::URL_SAFE, cfg);
+        engine.decode(b64)
+    })(inp)
 }
 
 pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
@@ -80,8 +99,9 @@ pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
 
     let string = map(parse_string, Literal::String);
     let guid = map(parse_guid, Literal::GUID);
+    let binary = map(parse_binary, Literal::Binary);
 
-    alt((null, bool, string, guid, float, int))(inp)
+    alt((null, bool, string, guid, float, int, binary))(inp)
 }
 
 pub fn parse(odata_query: &str) -> IResult<&str, CommonExpr> {
@@ -96,7 +116,7 @@ mod tests {
     where
         T: std::fmt::Debug + std::cmp::PartialEq,
     {
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "{:?}", result);
         match result {
             Ok((rest, node)) => {
                 assert!(rest.is_empty(), "Unparsed input: {rest}");
@@ -166,6 +186,23 @@ mod tests {
         assert_parsed_to(
             parse_literal(&guid.to_ascii_uppercase()),
             Literal::GUID(guid.to_ascii_uppercase()),
+        );
+    }
+
+    #[test]
+    fn parse_binary() {
+        let data = b"Definitely not a virus";
+
+        let data_padded = engine::general_purpose::URL_SAFE.encode(data);
+        assert_parsed_to(
+            parse_literal(&format!("binary'{data_padded}'")),
+            Literal::Binary(data.to_vec()),
+        );
+
+        let data_not_padded = engine::general_purpose::URL_SAFE_NO_PAD.encode(data);
+        assert_parsed_to(
+            parse_literal(&format!("binary'{data_not_padded}'")),
+            Literal::Binary(data.to_vec()),
         );
     }
 }
