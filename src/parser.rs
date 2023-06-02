@@ -1,6 +1,6 @@
 use crate::ast::{CommonExpr, Literal};
 use nom::branch::alt;
-use nom::bytes::complete::{is_not, tag, tag_no_case};
+use nom::bytes::complete::{is_not, tag, tag_no_case, take_while_m_n};
 use nom::character::complete::{char, digit1, one_of};
 use nom::combinator::{cut, map, opt, recognize, value, verify};
 use nom::error::{Error, ParseError};
@@ -41,6 +41,27 @@ pub fn parse_string(inp: &str) -> IResult<&str, String> {
     map(str_parts, |p| p.join(""))(inp)
 }
 
+// nom has its own `is_hex_digit`, but it only works on `u8`
+fn is_hex_digit(c: char) -> bool {
+    c.is_digit(16)
+}
+
+pub fn parse_guid(inp: &str) -> IResult<&str, String> {
+    let (i, guid_str) = recognize(tuple((
+        take_while_m_n(8, 8, is_hex_digit),
+        char('-'),
+        take_while_m_n(4, 4, is_hex_digit),
+        char('-'),
+        take_while_m_n(4, 4, is_hex_digit),
+        char('-'),
+        take_while_m_n(4, 4, is_hex_digit),
+        char('-'),
+        take_while_m_n(12, 12, is_hex_digit),
+    )))(inp)?;
+
+    Ok((i, guid_str.to_string()))
+}
+
 pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
     let null = value(Literal::Null, tag("null"));
 
@@ -58,8 +79,9 @@ pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
     ));
 
     let string = map(parse_string, Literal::String);
+    let guid = map(parse_guid, Literal::GUID);
 
-    alt((null, bool, string, float, int))(inp)
+    alt((null, bool, string, guid, float, int))(inp)
 }
 
 pub fn parse(odata_query: &str) -> IResult<&str, CommonExpr> {
@@ -134,6 +156,16 @@ mod tests {
         assert_parsed_to(
             parse_literal("'g''day sir'"),
             Literal::String("g'day sir".to_string()),
+        );
+    }
+
+    #[test]
+    fn parse_guid() {
+        let guid = "d13efbec-aa20-47f4-8756-c38852488b6e";
+        assert_parsed_to(parse_literal(&guid), Literal::GUID(guid.to_string()));
+        assert_parsed_to(
+            parse_literal(&guid.to_ascii_uppercase()),
+            Literal::GUID(guid.to_ascii_uppercase()),
         );
     }
 }
