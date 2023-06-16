@@ -6,7 +6,7 @@ mod parser;
 /// Formats the sum of two numbers as string.
 #[pyfunction]
 fn parse_odata(odata_query: &str) -> PyResult<bool> {
-    let ast = parser::parse(odata_query);
+    let ast = parser::expr::parse(odata_query);
     println!("{:?}", ast);
     Ok(true)
 }

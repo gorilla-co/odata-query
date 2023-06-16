@@ -1,16 +1,20 @@
+use time::{Date, Duration, OffsetDateTime, Time};
+
+/// primitiveLiteral
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
-    // primitiveLiteral
     Null,
     Boolean(bool),
-    Date(String),
-    DateTimeOffset(String),
-    Time(String),
-    Float(f64), // decimal, double, single
+    Date(Date),
+    DateTimeOffset(OffsetDateTime),
+    Time(Time),
+    /// decimal, double, single
+    Float(f64),
     GUID(String),
-    Integer(i64), // sbyte, byte, int16, int32 ,int64
+    /// sbyte, byte, int16, int32, int64
+    Integer(i64),
     String(String),
-    Duration(String),
+    Duration(Duration),
     Binary(Vec<u8>),
 }
 

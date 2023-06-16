@@ -1,4 +1,4 @@
-use crate::ast::{CommonExpr, Literal};
+use crate::ast::Literal;
 use base64::{alphabet, engine, Engine as _};
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, tag_no_case, take_while, take_while_m_n};
@@ -102,10 +102,6 @@ pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
     let binary = map(parse_binary, Literal::Binary);
 
     alt((null, bool, string, guid, float, int, binary))(inp)
-}
-
-pub fn parse(odata_query: &str) -> IResult<&str, CommonExpr> {
-    (map(parse_literal, CommonExpr::Literal))(odata_query)
 }
 
 #[cfg(test)]
