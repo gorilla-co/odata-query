@@ -6,10 +6,10 @@ use nom::character::complete::{char, digit1, one_of};
 use nom::combinator::{cut, map, map_res, opt, recognize, value, verify};
 use nom::error::{Error, ParseError};
 use nom::multi::many0;
-use nom::sequence::{delimited, pair, tuple};
+use nom::sequence::{delimited, pair, preceded, tuple};
 use nom::IResult;
 use nom::ParseTo;
-use time::{Date, Month};
+use time::{Date, Month, OffsetDateTime, Time, UtcOffset};
 
 pub fn parse_float(inp: &str) -> IResult<&str, f64> {
     let (i, float_str) = recognize(verify(
@@ -75,23 +75,28 @@ pub fn parse_guid(inp: &str) -> IResult<&str, String> {
 pub fn parse_year(inp: &str) -> IResult<&str, i32> {
     let parser = recognize(tuple((opt(char('-')), take_while_m_n(4, 4, is_digit))));
 
-    map_res(parser, |s: &str| s.parse::<i32>())(inp)
+    // Infallible, as 4 digits always fit an i32
+    map(parser, |s: &str| s.parse::<i32>().unwrap())(inp)
+}
+
+pub fn n_digits_between(inp: &str, n_digits: usize, min: u8, max: u8) -> IResult<&str, u8> {
+    let digits = take_while_m_n(n_digits, n_digits, is_digit);
+
+    verify(
+        map(digits, |s: &str| s.parse::<u8>().unwrap()),
+        |val: &u8| val >= &min && val <= &max,
+    )(inp)
 }
 
 pub fn parse_month(inp: &str) -> IResult<&str, Month> {
-    let parser = recognize(tuple((one_of("01"), take_while_m_n(1, 1, is_digit))));
-
-    map_res(parser, |s: &str| {
-        // We can unwrap this since we parse only 2 digits anyway
-        let month_num = s.parse::<u8>().unwrap();
-        Month::try_from(month_num)
-    })(inp)
+    map_res(
+        |i| n_digits_between(i, 2, 1, 12),
+        |val| Month::try_from(val),
+    )(inp)
 }
 
 pub fn parse_day(inp: &str) -> IResult<&str, u8> {
-    let parser = recognize(tuple((one_of("0123"), take_while_m_n(1, 1, is_digit))));
-
-    map_res(parser, |s: &str| s.parse::<u8>())(inp)
+    n_digits_between(inp, 2, 1, 31)
 }
 
 pub fn parse_date(inp: &str) -> IResult<&str, Date> {
@@ -100,6 +105,80 @@ pub fn parse_date(inp: &str) -> IResult<&str, Date> {
     let parser = tuple((parse_year, char('-'), parse_month, char('-'), parse_day));
 
     map_res(parser, |(y, _, m, _, d)| Date::from_calendar_date(y, m, d))(inp)
+}
+
+pub fn parse_hour(inp: &str) -> IResult<&str, u8> {
+    n_digits_between(inp, 2, 0, 24)
+}
+
+pub fn parse_minute(inp: &str) -> IResult<&str, u8> {
+    n_digits_between(inp, 2, 0, 59)
+}
+
+pub fn parse_fractional_seconds(inp: &str) -> IResult<&str, u32> {
+    // Parses the "fractionalSeconds" after the dot to an amount expressed in
+    // nanoseconds
+    let digits = take_while_m_n(1, 12, is_digit);
+
+    // Since we want to express as nanoseconds, and this is the fractional part
+    // of a number, we ensure we have exactly 9 digits before parsing:
+    let nanos = map(digits, |d: &str| format!("{d:0<9.9}"));
+
+    map(nanos, |s: String| s.parse::<u32>().unwrap())(inp)
+}
+
+pub fn parse_second(inp: &str) -> IResult<&str, (u8, u32)> {
+    let parser = tuple((
+        |i| n_digits_between(i, 2, 0, 59),
+        opt(preceded(char('.'), parse_fractional_seconds)),
+    ));
+
+    map(parser, |(sec, frac)| (sec, frac.unwrap_or(0)))(inp)
+}
+
+pub fn parse_time(inp: &str) -> IResult<&str, Time> {
+    let parser = tuple((
+        parse_hour,
+        char(':'),
+        parse_minute,
+        opt(preceded(char(':'), parse_second)),
+    ));
+
+    map_res(parser, |(h, _, m, s)| {
+        let (sec, nano) = s.unwrap_or((0, 0));
+        Time::from_hms_nano(h, m, sec, nano)
+    })(inp)
+}
+
+pub fn parse_tzoffset(inp: &str) -> IResult<&str, UtcOffset> {
+    alt((
+        value(UtcOffset::UTC, tag_no_case("Z")),
+        map(
+            tuple((one_of("+-"), parse_hour, char(':'), parse_minute)),
+            |(sign, h, _, m)| {
+                let modif: i8 = match sign {
+                    '+' => 1,
+                    '-' => -1,
+                    x => panic!("Unreachable: sign {x}"),
+                };
+                let hour = modif * TryInto::<i8>::try_into(h).unwrap();
+                UtcOffset::from_hms(hour, m.try_into().unwrap(), 0).unwrap()
+            },
+        ),
+    ))(inp)
+}
+
+pub fn parse_datetime(inp: &str) -> IResult<&str, OffsetDateTime> {
+    let parser = tuple((
+        parse_date,
+        tag_no_case("T"),
+        parse_time,
+        opt(parse_tzoffset),
+    ));
+
+    map(parser, |(d, _, t, o)| {
+        d.with_time(t).assume_offset(o.unwrap_or(UtcOffset::UTC))
+    })(inp)
 }
 
 pub fn parse_binary(inp: &str) -> IResult<&str, Vec<u8>> {
@@ -137,8 +216,12 @@ pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
     let binary = map(parse_binary, Literal::Binary);
 
     let date = map(parse_date, Literal::Date);
+    let time = map(parse_time, Literal::Time);
+    let datetime = map(parse_datetime, Literal::DateTimeOffset);
 
-    alt((null, bool, string, date, guid, float, int, binary))(inp)
+    alt((
+        null, bool, string, datetime, date, time, guid, float, int, binary,
+    ))(inp)
 }
 
 #[cfg(test)]
@@ -232,6 +315,70 @@ mod tests {
         assert_parsed_to(
             parse_literal("-0001-01-01"),
             Literal::Date(Date::from_calendar_date(-1, Month::January, 1).unwrap()),
+        );
+    }
+
+    #[test]
+    fn parse_time() {
+        assert_parsed_to(
+            parse_literal("01:02"),
+            Literal::Time(Time::from_hms(1, 2, 0).unwrap()),
+        );
+        assert_parsed_to(
+            parse_literal("01:02:03"),
+            Literal::Time(Time::from_hms(1, 2, 3).unwrap()),
+        );
+        assert_parsed_to(
+            parse_literal("01:02:03.1"),
+            Literal::Time(Time::from_hms_milli(1, 2, 3, 100).unwrap()),
+        );
+        assert_parsed_to(
+            parse_literal("01:02:03.000000001"),
+            Literal::Time(Time::from_hms_nano(1, 2, 3, 1).unwrap()),
+        );
+        assert_parsed_to(
+            parse_literal("01:02:03.000000001234"),
+            Literal::Time(Time::from_hms_nano(1, 2, 3, 1).unwrap()),
+        );
+    }
+
+    #[test]
+    fn parse_datetime() {
+        assert_parsed_to(
+            parse_literal("2023-01-01T00:00"),
+            Literal::DateTimeOffset(
+                Date::from_calendar_date(2023, Month::January, 1)
+                    .unwrap()
+                    .with_time(Time::from_hms(0, 0, 0).unwrap())
+                    .assume_offset(UtcOffset::UTC),
+            ),
+        );
+        assert_parsed_to(
+            parse_literal("2023-01-01T00:00:01.1"),
+            Literal::DateTimeOffset(
+                Date::from_calendar_date(2023, Month::January, 1)
+                    .unwrap()
+                    .with_time(Time::from_hms_milli(0, 0, 1, 100).unwrap())
+                    .assume_offset(UtcOffset::UTC),
+            ),
+        );
+        assert_parsed_to(
+            parse_literal("2023-01-01T00:00Z"),
+            Literal::DateTimeOffset(
+                Date::from_calendar_date(2023, Month::January, 1)
+                    .unwrap()
+                    .with_time(Time::from_hms(0, 0, 0).unwrap())
+                    .assume_offset(UtcOffset::UTC),
+            ),
+        );
+        assert_parsed_to(
+            parse_literal("2023-01-01T00:00+02:00"),
+            Literal::DateTimeOffset(
+                Date::from_calendar_date(2023, Month::January, 1)
+                    .unwrap()
+                    .with_time(Time::from_hms(0, 0, 0).unwrap())
+                    .assume_offset(UtcOffset::from_hms(2, 0, 0).unwrap()),
+            ),
         );
     }
 
