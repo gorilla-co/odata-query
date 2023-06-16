@@ -9,6 +9,7 @@ use nom::multi::many0;
 use nom::sequence::{delimited, pair, tuple};
 use nom::IResult;
 use nom::ParseTo;
+use time::{Date, Month};
 
 pub fn parse_float(inp: &str) -> IResult<&str, f64> {
     let (i, float_str) = recognize(verify(
@@ -47,6 +48,10 @@ fn is_hex_digit(c: char) -> bool {
     c.is_digit(16)
 }
 
+fn is_digit(c: char) -> bool {
+    c.is_digit(10)
+}
+
 fn is_base64url_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '='
 }
@@ -65,6 +70,36 @@ pub fn parse_guid(inp: &str) -> IResult<&str, String> {
     )))(inp)?;
 
     Ok((i, guid_str.to_string()))
+}
+
+pub fn parse_year(inp: &str) -> IResult<&str, i32> {
+    let parser = recognize(tuple((opt(char('-')), take_while_m_n(4, 4, is_digit))));
+
+    map_res(parser, |s: &str| s.parse::<i32>())(inp)
+}
+
+pub fn parse_month(inp: &str) -> IResult<&str, Month> {
+    let parser = recognize(tuple((one_of("01"), take_while_m_n(1, 1, is_digit))));
+
+    map_res(parser, |s: &str| {
+        // We can unwrap this since we parse only 2 digits anyway
+        let month_num = s.parse::<u8>().unwrap();
+        Month::try_from(month_num)
+    })(inp)
+}
+
+pub fn parse_day(inp: &str) -> IResult<&str, u8> {
+    let parser = recognize(tuple((one_of("0123"), take_while_m_n(1, 1, is_digit))));
+
+    map_res(parser, |s: &str| s.parse::<u8>())(inp)
+}
+
+pub fn parse_date(inp: &str) -> IResult<&str, Date> {
+    // OData `year`s can be negative, conflicting with ISO8601.
+    // So we don't use `time::*::parse`
+    let parser = tuple((parse_year, char('-'), parse_month, char('-'), parse_day));
+
+    map_res(parser, |(y, _, m, _, d)| Date::from_calendar_date(y, m, d))(inp)
 }
 
 pub fn parse_binary(inp: &str) -> IResult<&str, Vec<u8>> {
@@ -101,12 +136,15 @@ pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
     let guid = map(parse_guid, Literal::GUID);
     let binary = map(parse_binary, Literal::Binary);
 
-    alt((null, bool, string, guid, float, int, binary))(inp)
+    let date = map(parse_date, Literal::Date);
+
+    alt((null, bool, string, date, guid, float, int, binary))(inp)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use time::Month;
 
     fn assert_parsed_to<T>(result: IResult<&str, T>, exp: T)
     where
@@ -182,6 +220,18 @@ mod tests {
         assert_parsed_to(
             parse_literal(&guid.to_ascii_uppercase()),
             Literal::GUID(guid.to_ascii_uppercase()),
+        );
+    }
+
+    #[test]
+    fn parse_date() {
+        assert_parsed_to(
+            parse_literal("2023-01-01"),
+            Literal::Date(Date::from_calendar_date(2023, Month::January, 1).unwrap()),
+        );
+        assert_parsed_to(
+            parse_literal("-0001-01-01"),
+            Literal::Date(Date::from_calendar_date(-1, Month::January, 1).unwrap()),
         );
     }
 
