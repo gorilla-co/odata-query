@@ -6,10 +6,10 @@ use nom::character::complete::{char, digit1, one_of};
 use nom::combinator::{cut, map, map_res, opt, recognize, value, verify};
 use nom::error::{Error, ParseError};
 use nom::multi::many0;
-use nom::sequence::{delimited, pair, preceded, tuple};
+use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::IResult;
 use nom::ParseTo;
-use time::{Date, Month, OffsetDateTime, Time, UtcOffset};
+use time::{Date, Duration, Month, OffsetDateTime, Time, UtcOffset};
 
 pub fn parse_float(inp: &str) -> IResult<&str, f64> {
     let (i, float_str) = recognize(verify(
@@ -181,6 +181,57 @@ pub fn parse_datetime(inp: &str) -> IResult<&str, OffsetDateTime> {
     })(inp)
 }
 
+pub fn parse_duration(inp: &str) -> IResult<&str, Duration> {
+    let days = map(terminated(digit1, tag_no_case("D")), |s: &str| {
+        Duration::days(s.parse::<i64>().unwrap())
+    });
+    let hours = map(terminated(digit1, tag_no_case("H")), |s: &str| {
+        Duration::hours(s.parse::<i64>().unwrap())
+    });
+    let mins = map(terminated(digit1, tag_no_case("M")), |s: &str| {
+        Duration::minutes(s.parse::<i64>().unwrap())
+    });
+
+    let _s = recognize(tuple((digit1, opt(preceded(char('.'), digit1)))));
+    let secs = map(terminated(_s, tag_no_case("S")), |s: &str| {
+        Duration::seconds_f64(s.parse::<f64>().unwrap())
+    });
+
+    let time_duration = map(
+        tuple((tag_no_case("T"), opt(hours), opt(mins), opt(secs))),
+        |(_, h, m, s)| {
+            let hours = h.unwrap_or(Duration::ZERO);
+            let minutes = m.unwrap_or(Duration::ZERO);
+            let seconds = s.unwrap_or(Duration::ZERO);
+            hours.saturating_add(minutes).saturating_add(seconds)
+        },
+    );
+
+    let duration_val = map(
+        tuple((
+            opt(one_of("+-")),
+            tag_no_case("P"),
+            opt(days),
+            opt(time_duration),
+        )),
+        |(sign, _, d, t)| {
+            let days = d.unwrap_or(Duration::ZERO);
+            let time = t.unwrap_or(Duration::ZERO);
+            let res = days.saturating_add(time);
+            match sign {
+                Some('-') => -1 * res,
+                _ => res,
+            }
+        },
+    );
+
+    delimited(
+        tuple((opt(tag_no_case("duration")), char('\''))),
+        duration_val,
+        char('\''),
+    )(inp)
+}
+
 pub fn parse_binary(inp: &str) -> IResult<&str, Vec<u8>> {
     let binval = take_while(is_base64url_char);
     let parser = delimited(tag_no_case("binary'"), binval, char('\''));
@@ -218,9 +269,10 @@ pub fn parse_literal(inp: &str) -> IResult<&str, Literal> {
     let date = map(parse_date, Literal::Date);
     let time = map(parse_time, Literal::Time);
     let datetime = map(parse_datetime, Literal::DateTimeOffset);
+    let duration = map(parse_duration, Literal::Duration);
 
     alt((
-        null, bool, string, datetime, date, time, guid, float, int, binary,
+        null, duration, bool, string, datetime, date, time, guid, float, int, binary,
     ))(inp)
 }
 
@@ -379,6 +431,48 @@ mod tests {
                     .with_time(Time::from_hms(0, 0, 0).unwrap())
                     .assume_offset(UtcOffset::from_hms(2, 0, 0).unwrap()),
             ),
+        );
+    }
+
+    #[test]
+    fn parse_duration() {
+        assert_parsed_to(
+            parse_literal("duration'P1D'"),
+            Literal::Duration(Duration::days(1)),
+        );
+        assert_parsed_to(
+            parse_literal("duration'PT1H'"),
+            Literal::Duration(Duration::hours(1)),
+        );
+        assert_parsed_to(
+            parse_literal("duration'PT1M'"),
+            Literal::Duration(Duration::minutes(1)),
+        );
+        assert_parsed_to(
+            parse_literal("duration'PT1S'"),
+            Literal::Duration(Duration::seconds(1)),
+        );
+        assert_parsed_to(
+            parse_literal("duration'PT1.2S'"),
+            Literal::Duration(Duration::seconds_f64(1.2)),
+        );
+        assert_parsed_to(
+            parse_literal("duration'P1DT2H3M4.5S'"),
+            Literal::Duration(
+                Duration::days(1)
+                    + Duration::hours(2)
+                    + Duration::minutes(3)
+                    + Duration::seconds_f64(4.5),
+            ),
+        );
+        assert_parsed_to(
+            parse_literal("duration'-P1D'"),
+            Literal::Duration(Duration::days(-1)),
+        );
+        assert_parsed_to(parse_literal("'P1D'"), Literal::Duration(Duration::days(1)));
+        assert_parsed_to(
+            parse_literal("'-P1D'"),
+            Literal::Duration(Duration::days(-1)),
         );
     }
 
