@@ -21,9 +21,11 @@ pub enum Literal {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Name {
     Identifier(String),
+    Qualified(Vec<String>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CommonExpr {
     Literal(Literal),
+    Name(Name),
 }
