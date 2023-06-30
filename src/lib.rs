@@ -2,6 +2,8 @@ use pyo3::prelude::*;
 
 mod ast;
 mod parser;
+#[cfg(test)]
+mod test_util;
 
 /// Formats the sum of two numbers as string.
 #[pyfunction]

@@ -19,6 +19,11 @@ pub enum Literal {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Name {
+    Identifier(String),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum CommonExpr {
     Literal(Literal),
 }
