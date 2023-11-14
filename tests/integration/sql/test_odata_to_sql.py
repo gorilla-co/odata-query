@@ -103,6 +103,11 @@ from odata_query import exceptions as ex, sql
             "measurement_class eq 'C' and endswith(data_collector, 'rie')",
             "\"measurement_class\" = 'C' AND \"data_collector\" LIKE '%rie'",
         ),
+        # GITHUB-47
+        (
+            "contains(tolower(name), tolower('A'))",
+            "LOWER(\"name\") LIKE '%' || LOWER('A') || '%'",
+        ),
     ],
 )
 def test_odata_filter_to_sql(
