@@ -55,6 +55,7 @@ def sample_data_sess(db_conn, db_schema):
         ("blogpost", "year(published_at) eq 2019", 1),
         # GITHUB-19
         ("blogpost", "contains(title, 'Query') eq true", 1),
+        ("blogpost", "contains(tolower(title), tolower('Query'))", 1),
     ],
 )
 def test_query_with_odata(

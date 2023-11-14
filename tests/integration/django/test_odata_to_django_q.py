@@ -234,6 +234,11 @@ def tz(offset: int) -> dt.tzinfo:
             "contains(title, 'TEST') eq false",
             Q(contains_title_test__exact=Value(False)),
         ),
+        # GITHUB-47
+        (
+            "contains(tolower(name), tolower('A'))",
+            Q(name__lower__contains=fn.Lower(Value("A"))),
+        ),
     ],
 )
 def test_odata_filter_to_django_q_pre_v4(
@@ -564,6 +569,11 @@ def test_odata_filter_to_django_q_pre_v4(
         (
             "contains(title, 'TEST') eq false",
             Q(lu.Exact(lu.Contains(F("title"), Value("TEST")), Value(False))),
+        ),
+        # GITHUB-47
+        (
+            "contains(tolower(name), tolower('A'))",
+            Q(lu.Contains(fn.Lower(F("name")), fn.Lower(Value("A")))),
         ),
     ],
 )

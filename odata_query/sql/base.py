@@ -236,7 +236,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
         Transform a node into a pattern usable in `LIKE` clauses.
         :meta private:
         """
-        if isinstance(arg, ast.Identifier):
+        if isinstance(arg, (ast.Identifier, ast.Call)):
             res = self.visit(arg)
             if prefix:
                 res = f"'{prefix}' || " + res

@@ -197,6 +197,11 @@ def tz(offset: int) -> dt.tzinfo:
             "contains(title, 'TEST') eq true",
             BlogPost.title.contains("TEST") == True,  # noqa:E712
         ),
+        # GITHUB-47
+        (
+            "contains(tolower(title), tolower('A'))",
+            functions_ext.lower(BlogPost.title).contains(functions_ext.lower("A")),
+        ),
     ],
 )
 def test_odata_filter_to_sqlalchemy_query(

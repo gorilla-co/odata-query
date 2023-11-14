@@ -101,6 +101,11 @@ from odata_query import sql
             "measurement_class eq 'C' and endswith(data_collector, 'rie')",
             "\"measurement_class\" = 'C' AND \"data_collector\" LIKE '%rie'",
         ),
+        # GITHUB-47
+        (
+            "contains(tolower(name), tolower('A'))",
+            "LOWER(\"name\") LIKE '%' || LOWER('A') || '%'",
+        ),
     ],
 )
 def test_odata_filter_to_sql(odata_query: str, expected: str, lexer, parser):
