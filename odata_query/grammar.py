@@ -53,7 +53,7 @@ ODATA_FUNCTIONS = {
     "floor": 1,
     "ceiling": 1,
     # Geo functions
-    "geo.distance": 1,
+    "geo.distance": 2,
     "geo.length": 1,
     "geo.intersects": 2,
     # Set functions
@@ -67,6 +67,7 @@ class ODataLexer(Lexer):
         "ODATA_IDENTIFIER",
         "NULL",
         "STRING",
+        "GEOGRAPHY",
         "GUID",
         "DATETIME",
         "DATE",
@@ -141,6 +142,13 @@ class ODataLexer(Lexer):
         val = val.replace("''", "'")
 
         t.value = ast.String(val)
+        return t
+
+    @_(r"geography'(?:[^']|'')*'")
+    def GEOGRAPHY(self, t):
+        ":meta private:"
+
+        t.value = ast.Geography(t.value[10:-1])
         return t
 
     @_(r"[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}")
@@ -375,6 +383,7 @@ class ODataParser(Parser):
         "INTEGER",
         "DECIMAL",
         "STRING",
+        "GEOGRAPHY",
         "BOOLEAN",
         "GUID",
         "DATE",
@@ -551,7 +560,9 @@ class ODataParser(Parser):
     ####################################################################################
     def _function_call(self, func: ast.Identifier, args: List[ast._Node]):
         ":meta private:"
-        func_name = func.name
+
+        func_name = func.full_name()
+
         try:
             n_args_exp = ODATA_FUNCTIONS[func_name]
         except KeyError:

@@ -17,6 +17,9 @@ from django.db.models import (
 )
 from django.db.models.expressions import Expression
 
+from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.db.models import functions as gis_functions
+
 from odata_query import ast, exceptions as ex, typing, utils, visitor
 
 from .django_q_ext import NotEqual
@@ -254,10 +257,13 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> Union[Expression, Q]:
         ":meta private:"
+
+        func_name = node.func.full_name().replace('.', '__')
+
         try:
-            q_gen = getattr(self, "djangofunc_" + node.func.name.lower())
+            q_gen = getattr(self, "djangofunc_" + func_name.lower())
         except AttributeError:
-            raise ex.UnsupportedFunctionException(node.func.name)
+            raise ex.UnsupportedFunctionException(func_name)
 
         res = q_gen(*node.args)
         return res
@@ -302,6 +308,15 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
         else:
             raise NotImplementedError()
+
+    def djangofunc_geo__intersects(self, a, b):
+        return Q(**{a.name + '__' + 'intersects': GEOSGeometry(b.wkt())})
+
+    def djangofunc_geo__distance(self, a, b):
+        return gis_functions.Distance(a.name, GEOSGeometry(b.wkt()))
+
+    def djangofunc_geo__length(self, a):
+        return gis_functions.Length(a.name)
 
     def djangofunc_contains(
         self, field: ast._Node, substr: ast._Node
