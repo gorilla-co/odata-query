@@ -19,6 +19,9 @@ class Identifier(_Node):
     name: str
     namespace: Tuple[str, ...] = field(default_factory=tuple)
 
+    def full_name(self):
+        return '.'.join(self.namespace + (self.name,))
+
 
 @dataclass(frozen=True)
 class Attribute(_Node):
@@ -78,6 +81,14 @@ class String(_Literal):
 
     @property
     def py_val(self) -> str:
+        return self.val
+
+
+@dataclass(frozen=True)
+class Geography(_Literal):
+    val: str
+
+    def wkt(self):
         return self.val
 
 

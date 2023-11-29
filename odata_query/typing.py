@@ -64,7 +64,7 @@ def infer_return_type(node: ast.Call) -> Optional[Type[ast._Node]]:
     Returns:
         The inferred type or ``None`` if unable to infer.
     """
-    func = node.func.name
+    func = node.func.full_name()
 
     if func in (
         "contains",
