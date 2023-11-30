@@ -321,6 +321,11 @@ class UnaryOp(_Node):
 # Function calls
 ###############################################################################
 @dataclass(frozen=True)
+class NamedParam(_Node):
+    name: Identifier
+    param: _Node
+
+@dataclass(frozen=True)
 class Call(_Node):
     func: Identifier
     args: ListType[_Node]

@@ -96,7 +96,7 @@ class ODataLexer(Lexer):
         "ALL",
         "WS",
     }
-    literals = {"(", ")", ",", "/", ":"}
+    literals = {"(", ")", ",", "/", ":", "="}
     reflags = re.I
 
     # Ensure MyPy doesn't lose its mind:
@@ -563,23 +563,24 @@ class ODataParser(Parser):
 
         func_name = func.full_name()
 
-        try:
-            n_args_exp = ODATA_FUNCTIONS[func_name]
-        except KeyError:
-            raise exceptions.UnknownFunctionException(func_name)
+        if func.namespace in ((), ('geo',)):
+            try:
+                n_args_exp = ODATA_FUNCTIONS[func_name]
+            except KeyError:
+                raise exceptions.UnknownFunctionException(func_name)
 
-        n_args_given = len(args)
-        if isinstance(n_args_exp, int) and n_args_given != n_args_exp:
-            raise exceptions.ArgumentCountException(
-                func_name, n_args_exp, n_args_exp, n_args_given
-            )
+            n_args_given = len(args)
+            if isinstance(n_args_exp, int) and n_args_given != n_args_exp:
+                raise exceptions.ArgumentCountException(
+                    func_name, n_args_exp, n_args_exp, n_args_given
+                )
 
-        if isinstance(n_args_exp, tuple) and (
-            n_args_given < n_args_exp[0] or n_args_given > n_args_exp[1]
-        ):
-            raise exceptions.ArgumentCountException(
-                func_name, n_args_exp[0], n_args_exp[1], n_args_given
-            )
+            if isinstance(n_args_exp, tuple) and (
+                n_args_given < n_args_exp[0] or n_args_given > n_args_exp[1]
+            ):
+                raise exceptions.ArgumentCountException(
+                    func_name, n_args_exp[0], n_args_exp[1], n_args_given
+                )
 
         return ast.Call(func, args)
 
@@ -599,6 +600,33 @@ class ODataParser(Parser):
     def common_expr(self, p):
         ":meta private:"
         args = p[1].val
+        return self._function_call(p[0], args)
+
+    @_('ODATA_IDENTIFIER "=" common_expr')  # type:ignore[no-redef]
+    def named_param(self, p):
+        ":meta private:"
+        return ast.NamedParam(p[0], p.common_expr)
+
+    @_('named_param BWS "," BWS named_param')
+    def list_named_param(self, p):
+        ":meta private:"
+        return [p[0], p[4]]
+
+    @_('list_named_param BWS "," BWS named_param')  # type:ignore[no-redef]
+    def list_named_param(self, p):
+        ":meta private:"
+        return p.list_items + [p.named_param]
+
+    @_('ODATA_IDENTIFIER "(" BWS named_param BWS ")"')  # type:ignore[no-redef]
+    def common_expr(self, p):
+        ":meta private:"
+        args = [p.named_param]
+        return self._function_call(p[0], args)
+
+    @_('ODATA_IDENTIFIER "(" BWS list_named_param BWS ")"')  # type:ignore[no-redef]
+    def common_expr(self, p):
+        ":meta private:"
+        args = p.list_named_param
         return self._function_call(p[0], args)
 
     ####################################################################################
