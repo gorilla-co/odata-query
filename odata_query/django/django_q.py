@@ -265,7 +265,15 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         except AttributeError:
             raise ex.UnsupportedFunctionException(func_name)
 
-        res = q_gen(*node.args)
+        args = []
+        kwargs = {}
+        for arg in node.args:
+            if isinstance(arg, ast.NamedParam):
+                kwargs[arg.name.name] = arg.param
+            else:
+                args.append(arg)
+
+        res = q_gen(*args, **kwargs)
         return res
 
     def visit_CollectionLambda(self, node: ast.CollectionLambda) -> Q:
