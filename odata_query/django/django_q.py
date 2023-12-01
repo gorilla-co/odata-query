@@ -1,4 +1,5 @@
 import operator
+from contextlib import contextmanager
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 from uuid import UUID
 
@@ -17,8 +18,16 @@ from django.db.models import (
 )
 from django.db.models.expressions import Expression
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.contrib.gis.db.models import functions as gis_functions
+try:
+    # Django gis requires system level libraries, which not every user needs.
+    from django.contrib.gis.db.models import functions as gis_functions
+    from django.contrib.gis.geos import GEOSGeometry
+
+    _gis_error = None
+except Exception as e:
+    gis_functions = None
+    GEOSGeometry = None
+    _gis_error = e
 
 from odata_query import ast, exceptions as ex, typing, utils, visitor
 
@@ -41,6 +50,15 @@ COMPARISON_FLIP = {
     ast.Gt: ast.Lt,
     ast.GtE: ast.LtE,
 }
+
+
+@contextmanager
+def requires_gis(*args, **kwargs):
+    if not gis_functions:
+        raise ImportError(
+            "Cannot use geography functions because GeoDjango failed to load."
+        ) from _gis_error
+    yield
 
 
 class AstToDjangoQVisitor(visitor.NodeVisitor):
@@ -258,7 +276,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> Union[Expression, Q]:
         ":meta private:"
 
-        func_name = node.func.full_name().replace('.', '__')
+        func_name = node.func.full_name().replace(".", "__")
 
         try:
             q_gen = getattr(self, "djangofunc_" + func_name.lower())
@@ -317,12 +335,15 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         else:
             raise NotImplementedError()
 
+    @requires_gis
     def djangofunc_geo__intersects(self, a, b):
-        return Q(**{a.name + '__' + 'intersects': GEOSGeometry(b.wkt())})
+        return Q(**{a.name + "__" + "intersects": GEOSGeometry(b.wkt())})
 
+    @requires_gis
     def djangofunc_geo__distance(self, a, b):
         return gis_functions.Distance(a.name, GEOSGeometry(b.wkt()))
 
+    @requires_gis
     def djangofunc_geo__length(self, a):
         return gis_functions.Length(a.name)
 
