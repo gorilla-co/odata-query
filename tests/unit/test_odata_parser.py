@@ -111,6 +111,22 @@ def test_duration_parsing(value: str, expected_unpacked: tuple):
 
 
 @pytest.mark.parametrize(
+    "value, expected",
+    [
+        (
+            "geography'SRID=0;Point(142.1 64.1)'",
+            ast.Geography("SRID=0;Point(142.1 64.1)"),
+        )
+    ],
+)
+def test_geography_literal_parsing(value: str, expected: str):
+    res = parse(value, "primitive_literal")
+
+    assert isinstance(res, ast.Geography)
+    assert res == expected
+
+
+@pytest.mark.parametrize(
     "odata_val, exp_py_val",
     [
         ("null", None),
@@ -421,6 +437,13 @@ def test_bool_common_expr(expression: str, expected_ast: ast._Node):
         (
             "concat('abc', 'def')",
             ast.Call(ast.Identifier("concat"), [ast.String("abc"), ast.String("def")]),
+        ),
+        (
+            "geo.distance(home,geography'SRID=0;Point(142.1 64.1)')",
+            ast.Call(
+                ast.Identifier("distance", namespace=("geo",)),
+                [ast.Identifier("home"), ast.Geography("SRID=0;Point(142.1 64.1)")],
+            ),
         ),
     ],
 )
