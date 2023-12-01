@@ -20,7 +20,7 @@ class Identifier(_Node):
     namespace: Tuple[str, ...] = field(default_factory=tuple)
 
     def full_name(self):
-        return '.'.join(self.namespace + (self.name,))
+        return ".".join(self.namespace + (self.name,))
 
 
 @dataclass(frozen=True)
@@ -324,6 +324,7 @@ class UnaryOp(_Node):
 class NamedParam(_Node):
     name: Identifier
     param: _Node
+
 
 @dataclass(frozen=True)
 class Call(_Node):

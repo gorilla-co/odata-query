@@ -563,7 +563,7 @@ class ODataParser(Parser):
 
         func_name = func.full_name()
 
-        if func.namespace in ((), ('geo',)):
+        if func.namespace in ((), ("geo",)):
             try:
                 n_args_exp = ODATA_FUNCTIONS[func_name]
             except KeyError:
