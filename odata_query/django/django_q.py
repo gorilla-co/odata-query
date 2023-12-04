@@ -336,16 +336,16 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
             raise NotImplementedError()
 
     @requires_gis
-    def djangofunc_geo__intersects(self, a, b):
-        return Q(**{a.name + "__" + "intersects": GEOSGeometry(b.wkt())})
+    def djangofunc_geo__intersects(self, field: ast.Identifier, geography: ast.Geography):
+        return Q(**{field.name + "__" + "intersects": GEOSGeometry(geography.wkt())})
 
     @requires_gis
-    def djangofunc_geo__distance(self, a, b):
-        return gis_functions.Distance(a.name, GEOSGeometry(b.wkt()))
+    def djangofunc_geo__distance(self, field: ast.Identifier, geography: ast.Geography):
+        return gis_functions.Distance(field.name, GEOSGeometry(geography.wkt()))
 
     @requires_gis
-    def djangofunc_geo__length(self, a):
-        return gis_functions.Length(a.name)
+    def djangofunc_geo__length(self, field: ast.Identifier):
+        return gis_functions.Length(field.name)
 
     def djangofunc_contains(
         self, field: ast._Node, substr: ast._Node
