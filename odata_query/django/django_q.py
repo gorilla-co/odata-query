@@ -1,5 +1,6 @@
 import operator
 from contextlib import contextmanager
+from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 from uuid import UUID
 
@@ -52,13 +53,15 @@ COMPARISON_FLIP = {
 }
 
 
-@contextmanager
-def requires_gis(*args, **kwargs):
-    if not gis_functions:
-        raise ImportError(
-            "Cannot use geography functions because GeoDjango failed to load."
-        ) from _gis_error
-    yield
+def requires_gis(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not gis_functions:
+            raise ImportError(
+                "Cannot use geography functions because GeoDjango failed to load."
+            ) from _gis_error
+        return func(*args, **kwargs)
+    return wrapper
 
 
 class AstToDjangoQVisitor(visitor.NodeVisitor):
