@@ -1,5 +1,4 @@
 import operator
-from contextlib import contextmanager
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 from uuid import UUID
@@ -61,6 +60,7 @@ def requires_gis(func):
                 "Cannot use geography functions because GeoDjango failed to load."
             ) from _gis_error
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -339,7 +339,9 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
             raise NotImplementedError()
 
     @requires_gis
-    def djangofunc_geo__intersects(self, field: ast.Identifier, geography: ast.Geography):
+    def djangofunc_geo__intersects(
+        self, field: ast.Identifier, geography: ast.Geography
+    ):
         return Q(**{field.name + "__" + "intersects": GEOSGeometry(geography.wkt())})
 
     @requires_gis
