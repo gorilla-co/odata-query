@@ -21,7 +21,6 @@ def world_borders_dataset(data_dir: Path):
     filename_zip = target_dir.with_suffix(".zip")
 
     if not filename_zip.exists():
-        breakpoint()
         opener = req.build_opener()
         opener.addheaders = [("Accept", "application/zip")]
         req.install_opener(opener)
