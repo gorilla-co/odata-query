@@ -11,6 +11,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Install GIS libraries
+        run: sudo apt-get install -y binutils libproj-dev gdal-bin libsqlite3-mod-spatialite
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
