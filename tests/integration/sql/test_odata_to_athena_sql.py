@@ -54,6 +54,14 @@ from odata_query import sql
             '"period_start" + INTERVAL \'365\' DAY >= "period_end"',
         ),
         (
+            "period_start add duration'P1Y' ge period_end",
+            '"period_start" + INTERVAL \'1\' YEAR >= "period_end"',
+        ),
+        (
+            "period_start add duration'P2M' ge period_end",
+            '"period_start" + INTERVAL \'2\' MONTH >= "period_end"',
+        ),
+        (
             "period_start add duration'P365DT12H1M1.1S' ge period_end",
             "\"period_start\" + (INTERVAL '365' DAY + INTERVAL '12' HOUR + INTERVAL '1' MINUTE + INTERVAL '1.1' SECOND) >= \"period_end\"",
         ),

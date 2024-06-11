@@ -62,6 +62,14 @@ from odata_query import exceptions as ex, sql
             '"period_start" + INTERVAL \'1\' SECOND >= "period_end"',
         ),
         (
+            "period_start add duration'P1Y' ge period_end",
+            '"period_start" + INTERVAL \'1\' YEAR >= "period_end"',
+        ),
+        (
+            "period_start add duration'P2M' ge period_end",
+            '"period_start" + INTERVAL \'2\' MONTH >= "period_end"',
+        ),
+        (
             "year(period_start) eq 2019",
             "CAST(STRFTIME('%Y', \"period_start\") AS INTEGER) = 2019",
         ),
