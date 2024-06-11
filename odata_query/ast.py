@@ -127,8 +127,6 @@ class Duration(_Literal):
     def py_val(self) -> dt.timedelta:
         sign, years, months, days, hours, minutes, seconds = self.unpack()
 
-        # Approximate conversion, adjust as necessary for more precision
-
         # Initialize days to 0 if None
         days = float(days or 0)
 
