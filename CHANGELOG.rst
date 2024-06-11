@@ -13,7 +13,7 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 Added
 ^^^^^
 
-* Parser: Added support for Year and Month Duration {PxY, PxM}.
+* Parser: Parser: Added support for durations specified in years and months.
 
 [0.10.0] - 2024-01-21
 ---------------------
