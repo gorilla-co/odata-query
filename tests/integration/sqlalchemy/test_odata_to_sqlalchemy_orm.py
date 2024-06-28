@@ -119,6 +119,18 @@ def tz(offset: int) -> dt.tzinfo:
             == literal(dt.datetime(2019, 1, 1, 0, 0, 0))
             + dt.timedelta(days=1, hours=1, minutes=1, seconds=1),
         ),
+        (
+            "published_at eq 2019-01-01T00:00:00 add duration'P1Y'",
+            BlogPost.published_at
+            == literal(dt.datetime(2019, 1, 1, 0, 0, 0))
+            + dt.timedelta(days=365.25),  # 1 times 365.25 (average year in days)
+        ),
+        (
+            "published_at eq 2019-01-01T00:00:00 add duration'P2M'",
+            BlogPost.published_at
+            == literal(dt.datetime(2019, 1, 1, 0, 0, 0))
+            + dt.timedelta(days=60.88),  # 2 times 30.44 (average month in days)
+        ),
         ("contains(title, 'copy')", BlogPost.title.contains("copy")),
         ("startswith(title, 'copy')", BlogPost.title.startswith("copy")),
         ("endswith(title, 'bla')", BlogPost.title.endswith("bla")),

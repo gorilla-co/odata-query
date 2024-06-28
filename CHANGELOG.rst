@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_\ ,
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+[Unreleased]
+---------------------
+
+Added
+^^^^^
+
+* Parser: Added support for durations specified in years and months.
 
 [0.10.0] - 2024-01-21
 ---------------------
@@ -35,9 +42,9 @@ Fixed
 
 * SQLAlchemy functions defined by ``odata_query``
 
-    - no longer clash with other functions defined in ``sqlalchemy.func`` with 
+    - no longer clash with other functions defined in ``sqlalchemy.func`` with
        the same name.
-    - inherit cache to prevent SQLAlchemy performance warnings. 
+    - inherit cache to prevent SQLAlchemy performance warnings.
 
 
 [0.8.1] - 2023-02-17

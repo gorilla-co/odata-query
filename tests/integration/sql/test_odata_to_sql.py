@@ -63,10 +63,26 @@ from odata_query import exceptions as ex, sql
             "period_start add duration'PT1S' ge period_end",
             '"period_start" + INTERVAL \'1\' SECOND >= "period_end"',
         ),
+        (
+            "period_start add duration'P1Y' ge period_end",
+            '"period_start" + INTERVAL \'1\' YEAR >= "period_end"',
+        ),
+        (
+            "period_start add duration'P2M' ge period_end",
+            '"period_start" + INTERVAL \'2\' MONTH >= "period_end"',
+        ),
         ("year(period_start) eq 2019", 'EXTRACT (YEAR FROM "period_start") = 2019'),
         (
             "period_end lt now() sub duration'P365D'",
             "\"period_end\" < CURRENT_TIMESTAMP - INTERVAL '365' DAY",
+        ),
+        (
+            "period_end lt now() sub duration'P1Y'",
+            "\"period_end\" < CURRENT_TIMESTAMP - INTERVAL '1' YEAR",
+        ),
+        (
+            "period_end lt now() sub duration'P2M'",
+            "\"period_end\" < CURRENT_TIMESTAMP - INTERVAL '2' MONTH",
         ),
         (
             "startswith(trim(meter_id), '999')",

@@ -65,10 +65,14 @@ class AstToSqlVisitor(visitor.NodeVisitor):
 
     def visit_Duration(self, node: ast.Duration) -> str:
         ":meta private:"
-        sign, days, hours, minutes, seconds = node.unpack()
+        sign, years, months, days, hours, minutes, seconds = node.unpack()
 
         sign = sign or ""
         intervals = []
+        if years:
+            intervals.append(f"INTERVAL '{years}' YEAR")
+        if months:
+            intervals.append(f"INTERVAL '{months}' MONTH")
         if days:
             intervals.append(f"INTERVAL '{days}' DAY")
         if hours:

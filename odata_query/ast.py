@@ -6,7 +6,7 @@ from uuid import UUID
 
 from dateutil.parser import isoparse
 
-DURATION_PATTERN = re.compile(r"([+-])?P(\d+D)?(?:T(\d+H)?(\d+M)?(\d+(?:\.\d+)?S)?)?")
+DURATION_PATTERN = re.compile(r"([+-])?P(\d+Y)?(\d+M)?(\d+D)?(?:T(\d+H)?(\d+M)?(\d+(?:\.\d+)?S)?)?")
 
 
 @dataclass(frozen=True)
@@ -125,7 +125,15 @@ class Duration(_Literal):
 
     @property
     def py_val(self) -> dt.timedelta:
-        sign, days, hours, minutes, seconds = self.unpack()
+        sign, years, months, days, hours, minutes, seconds = self.unpack()
+
+        # Initialize days to 0 if None
+        days = float(days or 0)
+
+        # Approximate conversion, adjust as necessary for more precision
+        days += float(years or 0) * 365.25  # Average including leap years
+        days += float(months or 0) * 30.44  # Average month length
+
         delta = dt.timedelta(
             days=float(days or 0),
             hours=float(hours or 0),
@@ -150,14 +158,16 @@ class Duration(_Literal):
         if not match:
             raise ValueError(f"Could not unpack Duration with value {self.val}")
 
-        sign, days, hours, minutes, seconds = match.groups()
+        sign, years, months, days, hours, minutes, seconds = match.groups()
 
+        _years = years[:-1] if years else None
+        _months = months[:-1] if months else None
         _days = days[:-1] if days else None
         _hours = hours[:-1] if hours else None
         _minutes = minutes[:-1] if minutes else None
         _seconds = seconds[:-1] if seconds else None
 
-        return sign, _days, _hours, _minutes, _seconds
+        return sign, _years, _months, _days, _hours, _minutes, _seconds
 
 
 @dataclass(frozen=True)
