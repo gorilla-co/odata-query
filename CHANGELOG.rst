@@ -10,10 +10,6 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 [Unreleased]
 ---------------------
 
-Added
-^^^^^
-
-* Parser: Added support for durations specified in years and months.
 
 [0.10.0] - 2024-01-21
 ---------------------
@@ -23,6 +19,7 @@ Added
 
 * Parser,Django: Added support for geo.{intersects, distance, length} functions.
 * Python 3.11 coverage in test matrix.
+* Parser: Added support for durations specified in years and months.
 
 
 [0.9.1] - 2023-11-15
