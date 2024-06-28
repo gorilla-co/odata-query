@@ -107,4 +107,4 @@ ENV/
 node_modules/
 
 tests/integration/django/db/*
-tests/data/world_borders*
+tests/data/world_borders/*
