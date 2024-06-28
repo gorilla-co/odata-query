@@ -1,14 +1,6 @@
 OData-Query
 ===========
 
-.. image:: https://sonarcloud.io/api/project_badges/measure?project=gorillaco_odata-query&metric=alert_status&token=cb35257e036d950788a0f628af7062929318482b
-    :alt: Quality Gate Status
-    :target: https://sonarcloud.io/dashboard?id=gorillaco_odata-query
-
-.. image:: https://sonarcloud.io/api/project_badges/measure?project=gorillaco_odata-query&metric=coverage&token=cb35257e036d950788a0f628af7062929318482b
-    :alt: Coverage
-    :target: https://sonarcloud.io/dashboard?id=gorillaco_odata-query
-
 .. image:: https://readthedocs.org/projects/odata-query/badge/?version=latest
     :alt: Documentation Status
     :target: https://odata-query.readthedocs.io/en/latest/?badge=latest
