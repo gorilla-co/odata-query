@@ -134,14 +134,18 @@ def tz(offset: int) -> dt.tzinfo:
             "published_at eq 2019-01-01T00:00:00 add duration'P1Y'",
             Q(
                 published_at__exact=Value(dt.datetime(2019, 1, 1, 0, 0, 0))
-                                    + Value(dt.timedelta(days=365.25))  # 1 times 365.25 (average year in days)
+                + Value(
+                    dt.timedelta(days=365.25)
+                )  # 1 times 365.25 (average year in days)
             ),
         ),
         (
             "published_at eq 2019-01-01T00:00:00 add duration'P2M'",
             Q(
                 published_at__exact=Value(dt.datetime(2019, 1, 1, 0, 0, 0))
-                                    + Value(dt.timedelta(days=60.88))  # 2 times 30.44 (average month in days)
+                + Value(
+                    dt.timedelta(days=60.88)
+                )  # 2 times 30.44 (average month in days)
             ),
         ),
         ("contains(title, 'copy')", Q(title__contains=Value("copy"))),

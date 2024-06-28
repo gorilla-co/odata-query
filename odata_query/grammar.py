@@ -119,7 +119,9 @@ class ODataLexer(Lexer):
     # Primitive literals
     ####################################################################################
 
-    @_(r"duration'[+-]?P(?:\d+Y)?(?:\d+M)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?'")
+    @_(
+        r"duration'[+-]?P(?:\d+Y)?(?:\d+M)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?'"
+    )
     def DURATION(self, t):
         ":meta private:"
         val = t.value.upper()

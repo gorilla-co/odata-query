@@ -6,7 +6,9 @@ from uuid import UUID
 
 from dateutil.parser import isoparse
 
-DURATION_PATTERN = re.compile(r"([+-])?P(\d+Y)?(\d+M)?(\d+D)?(?:T(\d+H)?(\d+M)?(\d+(?:\.\d+)?S)?)?")
+DURATION_PATTERN = re.compile(
+    r"([+-])?P(\d+Y)?(\d+M)?(\d+D)?(?:T(\d+H)?(\d+M)?(\d+(?:\.\d+)?S)?)?"
+)
 
 
 @dataclass(frozen=True)
@@ -128,14 +130,14 @@ class Duration(_Literal):
         sign, years, months, days, hours, minutes, seconds = self.unpack()
 
         # Initialize days to 0 if None
-        days = float(days or 0)
+        num_days = float(days or 0)
 
         # Approximate conversion, adjust as necessary for more precision
-        days += float(years or 0) * 365.25  # Average including leap years
-        days += float(months or 0) * 30.44  # Average month length
+        num_days += float(years or 0) * 365.25  # Average including leap years
+        num_days += float(months or 0) * 30.44  # Average month length
 
         delta = dt.timedelta(
-            days=float(days or 0),
+            days=num_days,
             hours=float(hours or 0),
             minutes=float(minutes or 0),
             seconds=float(seconds or 0),
@@ -147,11 +149,17 @@ class Duration(_Literal):
     def unpack(
         self,
     ) -> Tuple[
-        Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]
+        Optional[str],
+        Optional[str],
+        Optional[str],
+        Optional[str],
+        Optional[str],
+        Optional[str],
+        Optional[str],
     ]:
         """
         Returns:
-            ``(sign, days, hours, minutes, seconds)``
+            ``(sign, years, months, days, hours, minutes, seconds)``
         """
 
         match = DURATION_PATTERN.fullmatch(self.val)
