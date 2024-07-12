@@ -13,6 +13,7 @@ Contents
    sql
    parsing-odata
    working-with-ast
+   deviations-and-extensions
    glossary
 
    contributing
