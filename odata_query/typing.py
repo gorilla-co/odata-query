@@ -51,7 +51,7 @@ def infer_type(node: ast._Node) -> Optional[Type[ast._Node]]:
     if isinstance(node, ast.Call):
         return infer_return_type(node)
 
-    log.warning("Failed to infer type for %s", node)
+    log.debug("Failed to infer type for %s", node)
     return None
 
 
