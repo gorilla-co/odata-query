@@ -1,4 +1,5 @@
 import datetime as dt
+import uuid
 
 import pytest
 from sqlalchemy.sql import functions
@@ -19,15 +20,15 @@ def tz(offset: int) -> dt.tzinfo:
     [
         (
             "id eq a7af27e6-f5a0-11e9-9649-0a252986adba",
-            BlogPost.id == "a7af27e6-f5a0-11e9-9649-0a252986adba",
+            BlogPost.id == uuid.UUID("a7af27e6-f5a0-11e9-9649-0a252986adba"),
         ),
         ("my_app.id eq 1", BlogPost.id == 1),
         (
             "id in (a7af27e6-f5a0-11e9-9649-0a252986adba, 800c56e4-354d-11eb-be38-3af9d323e83c)",
             BlogPost.id.in_(
                 [
-                    literal("a7af27e6-f5a0-11e9-9649-0a252986adba"),
-                    literal("800c56e4-354d-11eb-be38-3af9d323e83c"),
+                    literal(uuid.UUID("a7af27e6-f5a0-11e9-9649-0a252986adba")),
+                    literal(uuid.UUID("800c56e4-354d-11eb-be38-3af9d323e83c")),
                 ]
             ),
         ),

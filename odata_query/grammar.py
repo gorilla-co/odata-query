@@ -18,6 +18,7 @@ _RWS = r"\s+"
 _INTEGER = r"[+-]?\d+"
 _DATE = r"[1-9]\d{3}-(?:0\d|1[0-2])-(?:[0-2]\d|3[01])"
 _TIME = r"(?:[01]\d|2[0-3]):[0-5]\d(:?:[0-5]\d(?:\.\d{1,12})?)"
+_UUID_PATTERN = r"'?[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}'?"
 
 # Defines known functions and min/max nr of args:
 ODATA_FUNCTIONS = {
@@ -132,6 +133,12 @@ class ODataLexer(Lexer):
         t.value = ast.Duration(val)
         return t
 
+    @_(_UUID_PATTERN)
+    def GUID(self, t):
+        ":meta private:"
+        t.value = ast.GUID(t.value.strip("'"))
+        return t
+
     @_(r"'(?:[^']|'')*'")
     def STRING(self, t):
         ":meta private:"
@@ -151,12 +158,6 @@ class ODataLexer(Lexer):
         ":meta private:"
 
         t.value = ast.Geography(t.value[10:-1])
-        return t
-
-    @_(r"[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}")
-    def GUID(self, t):
-        ":meta private:"
-        t.value = ast.GUID(t.value)
         return t
 
     @_(_DATE + r"T" + _TIME + r"?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?")

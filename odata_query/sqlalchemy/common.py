@@ -19,7 +19,7 @@ from sqlalchemy.sql.expression import (
     or_,
     true,
 )
-from sqlalchemy.types import Date, Time
+from sqlalchemy.types import Date, Time, Uuid
 
 from odata_query import ast, exceptions as ex, typing, visitor
 
@@ -81,7 +81,7 @@ class _CommonVisitors(visitor.NodeVisitor):
 
     def visit_GUID(self, node: ast.GUID) -> BindParameter:
         ":meta private:"
-        return literal(node.val)
+        return literal(node.py_val, type_=Uuid())
 
     def visit_List(self, node: ast.List) -> list:
         ":meta private:"
