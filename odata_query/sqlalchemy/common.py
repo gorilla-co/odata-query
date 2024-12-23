@@ -2,6 +2,7 @@ import operator
 from typing import Any, Callable, Optional, Union
 
 from sqlalchemy.sql import functions
+from sqlalchemy import func
 from sqlalchemy.sql.expression import (
     BinaryExpression,
     BindParameter,
@@ -301,6 +302,13 @@ class _CommonVisitors(visitor.NodeVisitor):
     def func_floor(self, field: ast._Node) -> functions.Function:
         ":meta private:"
         return functions_ext.floor(self.visit(field))
+    
+    def func_aboutequal(self, field: ast._Node, value: ast._Node, tolerance: ast._Node) -> functions.Function:
+        ":meta private:"
+        field = self.visit(field)
+        value = self.visit(value)
+        tolerance = self.visit(tolerance)
+        return operator.lt(func.abs(operator.sub(field, value)), tolerance)  
 
     def func_round(self, field: ast._Node) -> functions.Function:
         ":meta private:"
