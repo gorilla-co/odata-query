@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Type
 
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ClauseElement, Select
+from sqlalchemy.orm.decl_api import DeclarativeMeta
 
 from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
 
@@ -16,8 +17,24 @@ def _get_joined_attrs(query: Select) -> List[str]:
     )
     return [str(join[0]) for join in setup_joins]
 
+def _get_model(query: ClauseElement, model: Type[DeclarativeMeta] | None = None) -> Type[DeclarativeMeta]:
+    if model is not None:
+        return model
 
-def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
+
+    clause_elem: ClauseElement
+    if isinstance(query, Query):
+        # For now, we keep supporting the 1.x style of queries unofficially.
+        # GITHUB-34
+        clause_elem = query.__clause_element__()
+    else:
+        clause_elem = query
+        
+    model = clause_elem.columns_clause_froms[0].entity_namespace
+    return model
+
+
+def apply_odata_query(query: ClauseElement, odata_query: str, model: Type[DeclarativeMeta] | None = None) -> ClauseElement:
     """
     Shorthand for applying an OData query to a SQLAlchemy query.
 
@@ -30,15 +47,7 @@ def apply_odata_query(query: ClauseElement, odata_query: str) -> ClauseElement:
     lexer = ODataLexer()
     parser = ODataParser()
 
-    clause_elem: ClauseElement
-    if isinstance(query, Query):
-        # For now, we keep supporting the 1.x style of queries unofficially.
-        # GITHUB-34
-        clause_elem = query.__clause_element__()
-    else:
-        clause_elem = query
-
-    model = clause_elem.columns_clause_froms[0].entity_namespace
+    model = _get_model(query, model)
 
     ast = parser.parse(lexer.tokenize(odata_query))
     transformer = AstToSqlAlchemyOrmVisitor(model)
