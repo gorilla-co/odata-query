@@ -147,3 +147,38 @@ def test_query_with_existing_join(apply_func, sample_data_sess):
 
     results = sample_data_sess.execute(q).scalars().all()
     assert len(results) == exp_results
+
+
+@pytest.mark.parametrize(
+    "apply_func",
+    [
+        pytest.param(apply_odata_query, id="ORM"),
+        pytest.param(apply_odata_query_bc_sqla1, id="ORM 1.x"),
+    ],
+)
+def test_query_with_explicit_model(apply_func, sample_data_sess):
+    """
+    Test querying with an explicitly passed model that differs from the main query model.
+    This is useful for complex queries where we want to filter on fields from a joined table
+    that isn't the primary model in the query.
+    """
+    odata_query = "name eq 'Gorilla'"
+    exp_results = 1
+
+    # ORM mode 1.x:
+    if apply_func is apply_odata_query_bc_sqla1:
+        base_q = sample_data_sess.query(BlogPost).join(BlogPost.authors)
+        q = apply_func(base_q, odata_query, model=Author)
+        results = q.all()
+        assert len(results) == exp_results
+        return
+
+    # ORM mode:
+    elif apply_func is apply_odata_query:
+        base_q = select(BlogPost).join(BlogPost.authors)
+        q = apply_func(base_q, odata_query, model=Author)
+    else:
+        raise ValueError(apply_func)
+
+    results = sample_data_sess.execute(q).scalars().all()
+    assert len(results) == exp_results
