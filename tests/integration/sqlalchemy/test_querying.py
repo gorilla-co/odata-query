@@ -2,9 +2,8 @@ import datetime as dt
 from typing import Callable, Type
 
 import pytest
-from sqlalchemy import select
-
 from odata_query.sqlalchemy import apply_odata_core, apply_odata_query
+from sqlalchemy import select
 
 from .models import Author, Base, BlogPost, Comment
 
@@ -49,6 +48,9 @@ def apply_odata_query_bc_sqla1(*args, **kwargs):
         (Author, "name eq 'Baboon'", 1),
         (Author, "startswith(name, 'Gori')", 1),
         (BlogPost, "contains(content, 'How')", 2),
+        (BlogPost, "contains(content, 'How')$top=1", 1),
+        (BlogPost, "contains(content, 'How')$top=1$skip=1", 1),
+        (BlogPost, "contains(content, 'How')$top=1$skip=2", 0),
         (BlogPost, "published_at gt 2019-06-01", 1),
         (Author, "contains(blogposts/title, 'Monkey')", 2),
         (Author, "startswith(blogposts/comments/content, 'Cool')", 2),
