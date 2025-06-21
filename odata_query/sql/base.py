@@ -1,9 +1,94 @@
 import logging
-from typing import Optional
+from datetime import date, datetime
+from typing import List, Optional, Union
+from uuid import UUID
 
 from odata_query import ast, exceptions, typing, visitor
 
 log = logging.getLogger(__name__)
+
+Parameter = Union[
+    ast.String,
+    ast.Integer,
+    ast.Float,
+    ast.Date,
+    ast.DateTime,
+    ast.GUID,
+    ast.Boolean,
+]
+ParameterValue = Union[str, int, float, date, datetime, UUID, bool]
+
+
+class ParameterHandler:
+    def __init__(self) -> None:
+        self.params: List[ParameterValue] = []
+
+    def _sanitize(self, node: Parameter) -> ParameterValue:
+        return node.val
+
+    def sanitize(self, node: Parameter) -> ParameterValue:
+        method = "_sanitize_" + node.__class__.__name__
+        sanitizer = getattr(self, method, self._sanitize)
+        return sanitizer(node)
+
+    def add_parameter(self, node: Parameter) -> str:
+        return str(self.sanitize(node))
+
+
+class ParametrizationHandler(ParameterHandler):
+    template: str = "?"
+
+    def __init__(self, initial_params: list[ParameterValue] | None = None) -> None:
+        self.params: List[ParameterValue] = initial_params or []
+
+    def _sanitize(self, node: Parameter) -> ParameterValue:
+        return node.py_val
+
+    def sanitize(self, node: Parameter) -> ParameterValue:
+        return super().sanitize(node)
+
+    def add_parameter(self, node: Parameter) -> str:
+        val = self.sanitize(node)
+        self.params.append(val)
+
+        return self.template
+
+
+class PositionalParametrizationHandler(ParametrizationHandler):
+    template: str = "${}"
+
+    def add_parameter(self, node: Parameter) -> str:
+        val = self.sanitize(node)
+        if val in self.params:
+            position = self.params.index(val) + 1
+        else:
+            self.params.append(val)
+            position = len(self.params)
+
+        return self.template.format(position)
+
+
+class RawSqlHandler(ParameterHandler):
+    def _sanitize_String(self, node: ast.String) -> str:
+        # Replace single quotes with double single-quotes acc SQL standard:
+        raw = node.val.replace("'", "''")
+        # Wrap in single quotes for string constants acc SQL Standard
+        return f"'{raw}'"
+
+    def _sanitize_Boolean(self, node: ast.Boolean) -> str:
+        return node.val.upper()
+
+    def _sanitize_Date(self, node: ast.Date) -> str:
+        # Single quotes for date constants acc SQL Standard
+        return f"DATE '{node.val}'"
+
+    def _sanitize_DateTime(self, node: ast.DateTime) -> str:
+        raw = node.val.replace("T", " ")
+        # Single quotes for datetime constants acc SQL Standard
+        return f"TIMESTAMP '{raw}'"
+
+    def _sanitize_GUID(self, node: ast.GUID) -> str:
+        return f"'{node.val}'"
 
 
 class AstToSqlVisitor(visitor.NodeVisitor):
@@ -15,53 +100,65 @@ class AstToSqlVisitor(visitor.NodeVisitor):
         table_alias: Optional alias for the root table.
     """
 
-    def __init__(self, table_alias: Optional[str] = None):
+    phandler: ParameterHandler = RawSqlHandler()
+
+    def __init__(
+        self,
+        table_alias: Optional[str] = None,
+        *,
+        phandler: Optional[ParameterHandler] = None,
+        column_mapping: dict[str, str] | None = None,
+    ):
         super().__init__()
         self.table_alias = table_alias
+        self.column_mapping = column_mapping or {}
+        if phandler:
+            self.phandler = phandler
+
+    @property
+    def params(self) -> List[ParameterValue]:
+        return self.phandler.params
 
     def visit_Identifier(self, node: ast.Identifier) -> str:
         ":meta private:"
         # Double quotes for column names acc SQL Standard
         sql_id = f'"{node.name}"'
+        
+        if node.name in self.column_mapping:
+            sql_id = self.column_mapping[node.name]
 
-        if self.table_alias:
-            sql_id = f'"{self.table_alias}".' + sql_id
+        elif self.table_alias:
+            sql_id = f'"{self.table_alias}".{sql_id}'
 
         return sql_id
 
     def visit_Null(self, node: ast.Null) -> str:
         ":meta private:"
-        return "NULL"
+        return node.val.upper()
 
     def visit_Integer(self, node: ast.Integer) -> str:
         ":meta private:"
-        return node.val
+        return self.phandler.add_parameter(node)
 
     def visit_Float(self, node: ast.Float) -> str:
         ":meta private:"
-        return node.val
+        return self.phandler.add_parameter(node)
 
     def visit_Boolean(self, node: ast.Boolean) -> str:
         ":meta private:"
-        return node.val.upper()
+        return self.phandler.add_parameter(node)
 
     def visit_String(self, node: ast.String) -> str:
         ":meta private:"
-        # Replace single quotes with double single-quotes acc SQL standard:
-        val = node.val.replace("'", "''")
-        # Wrap in single quotes for string constants acc SQL Standard
-        return f"'{val}'"
+        return self.phandler.add_parameter(node)
 
     def visit_Date(self, node: ast.Date) -> str:
         ":meta private:"
-        # Single quotes for date constants acc SQL Standard
-        return f"DATE '{node.val}'"
+        return self.phandler.add_parameter(node)
 
     def visit_DateTime(self, node: ast.DateTime) -> str:
         ":meta private:"
-        sql_ts = node.val.replace("T", " ")
-        # Single quotes for datetime constants acc SQL Standard
-        return f"TIMESTAMP '{sql_ts}'"
+        return self.phandler.add_parameter(node)
 
     def visit_Duration(self, node: ast.Duration) -> str:
         ":meta private:"
@@ -96,7 +193,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
 
     def visit_GUID(self, node: ast.GUID) -> str:
         ":meta private:"
-        return f"'{node.val}'"
+        return self.phandler.add_parameter(node)
 
     def visit_List(self, node: ast.List) -> str:
         ":meta private:"
@@ -248,12 +345,14 @@ class AstToSqlVisitor(visitor.NodeVisitor):
                 res = res + f" || '{suffix}'"
         else:
             res = str(arg.val).replace("%", "%%").replace("_", "__")  # type: ignore
-            res = "'" + prefix + res + suffix + "'"
+            res = prefix + res + suffix
+            return self.phandler.add_parameter(ast.String(res))
+
         return res
 
     def sqlfunc_contains(self, *args: ast._Node) -> str:
         ":meta private:"
-        args_sql = [self.visit(arg) for arg in args]
+        arg0 = self.visit(args[0]) if args else None
         inferred_type = [typing.infer_type(arg) for arg in args]
 
         # If any of the inputs is a string or default, assume str-contains:
@@ -261,7 +360,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
             typ is None for typ in inferred_type
         ):
             pattern = self._to_pattern(args[1], prefix="%", suffix="%")
-            return f"{args_sql[0]} LIKE {pattern}"
+            return f"{arg0} LIKE {pattern}"
 
         # If any of the inputs is a list, assume list-contains:
         if any(typ is ast.List for typ in inferred_type):
@@ -271,7 +370,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
 
     def sqlfunc_endswith(self, *args: ast._Node) -> str:
         ":meta private:"
-        args_sql = [self.visit(arg) for arg in args]
+        arg0 = self.visit(args[0]) if args else None
         inferred_type = [typing.infer_type(arg) for arg in args]
 
         # If any of the inputs is a string or default, assume str-endswith:
@@ -279,7 +378,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
             typ is None for typ in inferred_type
         ):
             pattern = self._to_pattern(args[1], prefix="%")
-            return f"{args_sql[0]} LIKE {pattern}"
+            return f"{arg0} LIKE {pattern}"
 
         # If any of the inputs is a list, assume list-endswith
         # which isn't easily doable at the moment:
@@ -290,14 +389,13 @@ class AstToSqlVisitor(visitor.NodeVisitor):
 
     def sqlfunc_indexof(self, *args: ast._Node) -> str:
         ":meta private:"
-        args_sql = [self.visit(arg) for arg in args]
         inferred_type = [typing.infer_type(arg) for arg in args]
 
         # If any of the inputs is a string, assume str-indexof:
         if any(typ is ast.String for typ in inferred_type) or all(
             typ is None for typ in inferred_type
         ):
-            return f"POSITION({args_sql[1]} IN {args_sql[0]}) - 1"
+            return f"POSITION({self.visit(args[1])} IN {self.visit(args[0])}) - 1"
 
         # If any of the inputs is a list, assume list-indexof
         # which isn't easily doable at the moment:
@@ -323,7 +421,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
 
     def sqlfunc_startswith(self, *args: ast._Node) -> str:
         ":meta private:"
-        args_sql = [self.visit(arg) for arg in args]
+        arg0 = self.visit(args[0]) if args else None
         inferred_type = [typing.infer_type(arg) for arg in args]
 
         # If any of the inputs is a string or default, assume str-startswith:
@@ -331,7 +429,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
             typ is None for typ in inferred_type
         ):
             pattern = self._to_pattern(args[1], suffix="%")
-            return f"{args_sql[0]} LIKE {pattern}"
+            return f"{arg0} LIKE {pattern}"
 
         # If any of the inputs is a list, assume list-startswith
         # which isn't easily doable at the moment:
@@ -416,20 +514,18 @@ class AstToSqlVisitor(visitor.NodeVisitor):
 
     def sqlfunc_floor(self, arg: ast._Node) -> str:
         ":meta private:"
-        arg_sql = self.visit(arg)
-        return f"""CASE {arg_sql}
-    WHEN > 0 CAST ({arg_sql} AS INTEGER)
-    WHEN < 0 CAST (0 - (ABS({arg_sql}) + 0.5) AS INTEGER))
-    ELSE {arg_sql}
+        return f"""CASE {self.visit(arg)}
+    WHEN > 0 CAST ({self.visit(arg)} AS INTEGER)
+    WHEN < 0 CAST (0 - (ABS({self.visit(arg)}) + 0.5) AS INTEGER))
+    ELSE {self.visit(arg)}
 END"""
 
     def sqlfunc_ceiling(self, arg: ast._Node) -> str:
         ":meta private:"
-        arg_sql = self.visit(arg)
-        return f"""CASE {arg_sql} - CAST ({arg_sql} AS INTEGER)
-    WHEN > 0 {arg_sql}+1
-    WHEN < 0 {arg_sql}-1
-    ELSE {arg_sql}
+        return f"""CASE {self.visit(arg)} - CAST ({self.visit(arg)} AS INTEGER)
+    WHEN > 0 CAST ({self.visit(arg)} AS INTEGER) + 1
+    WHEN < 0 CAST ({self.visit(arg)} AS INTEGER) - 1
+    ELSE {self.visit(arg)}
 END"""
 
     def sqlfunc_hassubset(self, *args: ast._Node) -> str:

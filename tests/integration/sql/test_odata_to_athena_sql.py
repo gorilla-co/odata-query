@@ -120,9 +120,5 @@ def test_odata_filter_to_sql(odata_query: str, expected: str, lexer, parser):
     ast = parser.parse(lexer.tokenize(odata_query))
     visitor = sql.AstToAthenaSqlVisitor()
 
-    if isinstance(expected, str):
-        res = visitor.visit(ast)
-        assert res == expected
-    else:
-        with pytest.raises(expected):
-            res = visitor.visit(ast)
+    res = visitor.visit(ast)
+    assert res == expected
