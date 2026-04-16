@@ -21,6 +21,7 @@ _TIME = r"(?:[01]\d|2[0-3]):[0-5]\d(:?:[0-5]\d(?:\.\d{1,12})?)"
 
 # Defines known functions and min/max nr of args:
 ODATA_FUNCTIONS = {
+    "concat": 2,
     # String functions
     "concat": 2,
     "contains": 2,
@@ -95,6 +96,8 @@ class ODataLexer(Lexer):
         "ANY",
         "ALL",
         "WS",
+        "BETWEEN",
+        # "EXISTS",
     }
     literals = {"(", ")", ",", "/", ":", "="}
     reflags = re.I
@@ -305,6 +308,18 @@ class ODataLexer(Lexer):
         ":meta private:"
         t.value = ast.In()
         return t
+
+    @_(rf"{_RWS}between{_RWS}")
+    def BETWEEN(self, t):
+        ":meta private:"
+        t.value = ast.Between()
+        return t
+
+    # @_(rf"{_RWS}exists")
+    # def EXISTS(self, t):
+    #     ":meta private:"
+    #     t.value = ast.Exists()
+    #     return t
 
     ####################################################################################
     # Collection operators
@@ -537,10 +552,20 @@ class ODataParser(Parser):
         "common_expr GT common_expr",
         "common_expr GE common_expr",
         "common_expr IN list_expr",
+        "common_expr BETWEEN list_expr",
+        # "common_expr EXISTS"
     )
     def common_expr(self, p):
         ":meta private:"
         return ast.Compare(p[1], p[0], p[2])
+
+    # @_(  # type:ignore[no-redef]
+    #     "common_expr EXISTS",
+    # )
+    # def common_expr(self, p):
+    #     ":meta private:"
+    #     return ast.Compare(p[1], p[0])
+
 
     ####################################################################################
     # Boolean logic

@@ -278,12 +278,24 @@ class GtE(_Comparator):
 class In(_Comparator):
     pass
 
+@dataclass(frozen=True)
+class Between(_Comparator):
+    pass
+
+# @dataclass(frozen=True)
+# class Exists(_Comparator):
+#     pass
 
 @dataclass(frozen=True)
 class Compare(_Node):
     comparator: _Comparator
     left: _Node
     right: _Node
+
+@dataclass(frozen=True)
+class Compare2(_Node):
+    comparator: _Comparator
+    left: _Node
 
 
 ###############################################################################
