@@ -8,7 +8,7 @@ class NotEqual(Lookup):
 
     lookup_name = "ne"
 
-    def as_sql(self, compiler, connection):  # type: ignore
+    def as_sql(self, compiler, connection):
         lhs, lhs_params = self.process_lhs(compiler, connection)
         rhs, rhs_params = self.process_rhs(compiler, connection)
         params = lhs_params + rhs_params
@@ -39,15 +39,13 @@ class _AnyAll(Subquery):
     def __repr__(self) -> str:
         return self.template % {"subquery": self.queryset.query}
 
-    def as_sql(  # type: ignore
-        self, compiler, connection, template=None, **extra_context
-    ):
+    def as_sql(self, compiler, connection, template=None, **extra_context):
         sql, params = super().as_sql(compiler, connection, template, **extra_context)
         # if self.negated:
         #     sql = "NOT {}".format(sql)
         return sql, params
 
-    def select_format(self, compiler, sql, params):  # type:ignore
+    def select_format(self, compiler, sql, params):
         return sql, params
 
 

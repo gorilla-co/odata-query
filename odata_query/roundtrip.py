@@ -1,10 +1,4 @@
-import sys
-from typing import Type
-
-if sys.version_info >= (3, 8):
-    from typing import Protocol
-else:
-    from typing_extensions import Protocol
+from typing import Protocol, Type
 
 from odata_query import ast, visitor
 
@@ -216,9 +210,9 @@ class AstToODataVisitor(visitor.NodeVisitor):
         res = self.visit(node)
 
         if hasattr(node, "op"):
-            node_op = type(node.op)  # type: ignore
+            node_op = type(node.op)
         elif hasattr(node, "comparator"):
-            node_op = type(node.comparator)  # type: ignore
+            node_op = type(node.comparator)
         else:
             node_op = type(node)
 

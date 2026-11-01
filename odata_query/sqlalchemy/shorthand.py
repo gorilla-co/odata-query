@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ClauseElement, Select
 
-from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
+from odata_query.grammar import ODataLexer, ODataParser
 
 from .core import AstToSqlAlchemyCoreVisitor
 from .orm import AstToSqlAlchemyOrmVisitor

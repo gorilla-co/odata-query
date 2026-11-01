@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 
 from . import ast
-from .grammar import ODataLexer, ODataParser  # type: ignore
+from .grammar import ODataLexer, ODataParser
 from .visitor import NodeTransformer
 
 

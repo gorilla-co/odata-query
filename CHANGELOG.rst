@@ -10,6 +10,21 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 [Unreleased]
 ---------------------
 
+Removed
+^^^^^^^
+
+* Support for Python 3.7, 3.8, 3.9 and 3.10. Python 3.11 up to 3.15 are supported.
+* Support for Django versions before 5.2. Django 5.2 and 6 are tested.
+* The Django compatibility helpers ``odata_query.django.django_q.DJANGO_LT_4``
+  and ``odata_query.django.django_q.COMPARISON_FLIP``.
+
+Changed
+^^^^^^^
+
+* The project is now managed with ``uv``, ``poethepoet``, ``ruff`` and ``ty``
+  instead of ``poetry``, ``tox``, ``flake8``, ``black``, ``isort``, ``mypy`` and
+  ``vulture``. See ``CONTRIBUTING.rst``.
+
 
 [0.10.1] - 2026-11-01
 ---------------------

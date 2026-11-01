@@ -5,9 +5,9 @@ OData-Query
     :alt: Documentation Status
     :target: https://odata-query.readthedocs.io/en/latest/?badge=latest
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :alt: Code style: black
-    :target: https://github.com/psf/black
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :alt: Ruff
+    :target: https://github.com/astral-sh/ruff
 
 
 ``odata-query`` is a library that parses `OData v4`_ filter strings, and can
@@ -25,6 +25,8 @@ of your choice:
 
     pip install odata-query
     # OR
+    uv add odata-query
+    # OR
     poetry add odata-query
     # OR
     pipenv install odata-query
@@ -34,13 +36,6 @@ The package defines the following optional ``extra``'s:
 
 * ``django``: If you want to pin a compatible Django version.
 * ``sqlalchemy``: If you want to pin a compatible SQLAlchemy version.
-
-
-The following ``extra``'s relate to the development of this library:
-
-- ``linting``: The linting and code style tools.
-- ``testing``: Packages for running the tests.
-- ``docs``: For building the project documentation.
 
 
 You can install ``extra``'s by adding them between square brackets during
