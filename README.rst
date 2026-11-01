@@ -5,9 +5,9 @@ OData-Query
     :alt: Documentation Status
     :target: https://odata-query.readthedocs.io/en/latest/?badge=latest
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :alt: Code style: black
-    :target: https://github.com/psf/black
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :alt: Ruff
+    :target: https://github.com/astral-sh/ruff
 
 
 ``odata-query`` is a library that parses `OData v4`_ filter strings, and can

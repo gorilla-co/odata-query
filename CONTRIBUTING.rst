@@ -106,6 +106,20 @@ To run the tests, run:
     uv run poe test
 
 
+To check linting, formatting and types, run:
+
+.. code-block:: bash
+
+    uv run poe lint
+
+
+To format the code and sort the imports, run:
+
+.. code-block:: bash
+
+    uv run poe format
+
+
 To build the documentation, run:
 
 .. code-block:: bash

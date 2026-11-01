@@ -1,6 +1,6 @@
 from django.db.models.query import QuerySet
 
-from odata_query.grammar import ODataLexer, ODataParser  # type: ignore
+from odata_query.grammar import ODataLexer, ODataParser
 
 from .django_q import AstToDjangoQVisitor
 

@@ -216,9 +216,9 @@ class AstToODataVisitor(visitor.NodeVisitor):
         res = self.visit(node)
 
         if hasattr(node, "op"):
-            node_op = type(node.op)  # type: ignore
+            node_op = type(node.op)
         elif hasattr(node, "comparator"):
-            node_op = type(node.comparator)  # type: ignore
+            node_op = type(node.comparator)
         else:
             node_op = type(node)
 

@@ -83,7 +83,7 @@ class AstToSqlAlchemyOrmVisitor(common._CommonVisitors, visitor.NodeVisitor):
             return owner_prop.any(subquery_filter)
         else:
             # For an ALL query, invert both the filter and the EXISTS:
-            if node.lambda_:
+            if subquery_filter is not None:
                 subquery_filter = ~subquery_filter
             return ~owner_prop.any(subquery_filter)
 

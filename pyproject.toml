@@ -47,9 +47,16 @@ docs = [
     "sphinx>=7",
     "sphinx-rtd-theme>=2",
 ]
+lint = [
+    "odata-query[django,sqlalchemy]",
+    "ruff",
+    "ty",
+    "types-python-dateutil",
+]
 release = ["bump2version>=1"]
 dev = [
     "poethepoet",
+    { include-group = "lint" },
     { include-group = "test" },
     { include-group = "docs" },
     { include-group = "release" },
@@ -67,6 +74,15 @@ module-root = ""
 
 [tool.poe.tasks]
 test = { cmd = "pytest tests/unit tests/integration -r fEs", env = { DJANGO_SETTINGS_MODULE = "tests.integration.django.settings" } }
+lint = [
+    { cmd = "ruff check" },
+    { cmd = "ruff format --check" },
+    { cmd = "ty check" },
+]
+format = [
+    { cmd = "ruff check --select I --fix" },
+    { cmd = "ruff format" },
+]
 docs = "sphinx-build docs/source docs/build"
 apidoc = "sphinx-apidoc -f -o docs/source/api -e odata_query"
 
@@ -77,3 +93,34 @@ markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
 [tool.coverage.run]
 omit = ["tests/*", ".venv/*"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "C90"]
+ignore = ["E501"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 18
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+"odata_query/grammar.py" = ["F821", "F811"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["odata_query", "tests"]
+combine-as-imports = true
+
+[tool.ty.src]
+include = ["odata_query"]
+
+[tool.ty.analysis]
+replace-imports-with-any = ["django.**", "sqlalchemy.**"]
+
+[[tool.ty.overrides]]
+include = ["odata_query/grammar.py"]
+
+[tool.ty.overrides.rules]
+# SLY injects `_` into the class namespace.
+unresolved-reference = "ignore"

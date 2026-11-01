@@ -25,8 +25,8 @@ try:
 
     _gis_error = None
 except Exception as e:
-    gis_functions = None
-    GEOSGeometry = None
+    gis_functions: Any = None
+    GEOSGeometry: Any = None
     _gis_error = e
 
 from odata_query import ast, exceptions as ex, typing, utils, visitor
@@ -36,7 +36,7 @@ from .utils import reverse_relationship
 
 DJANGO_LT_4 = django.VERSION[0] < 4
 
-COMPARISON_FLIP = {
+COMPARISON_FLIP: Dict[Any, Any] = {
     lookups.Exact: lookups.Exact,
     NotEqual: NotEqual,
     lookups.LessThan: lookups.GreaterThan,
