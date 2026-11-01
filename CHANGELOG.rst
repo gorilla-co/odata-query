@@ -15,6 +15,13 @@ Changed
 
 * Log ``debug`` instead of ``warning`` when type inference fails.
 
+Security
+^^^^^^^^
+
+* SQL: Fixed SQL injection in the ``contains``, ``startswith`` and ``endswith``
+  functions of the SQL, SQLite and Athena backends. Single quotes in the search
+  string were not escaped.
+
 
 [0.10.0] - 2024-01-21
 ---------------------

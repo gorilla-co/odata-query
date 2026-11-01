@@ -247,7 +247,8 @@ class AstToSqlVisitor(visitor.NodeVisitor):
             if suffix:
                 res = res + f" || '{suffix}'"
         else:
-            res = str(arg.val).replace("%", "%%").replace("_", "__")  # type: ignore
+            res = str(arg.val).replace("'", "''")  # type: ignore
+            res = res.replace("%", "%%").replace("_", "__")
             res = "'" + prefix + res + suffix + "'"
         return res
 

@@ -69,3 +69,17 @@ def test_query_with_odata(
         f'SELECT * FROM "{table}" WHERE {where_clause}'
     ).fetchall()
     assert len(results) == exp_results
+
+
+@pytest.mark.parametrize("func", ["contains", "startswith", "endswith"])
+def test_like_functions_do_not_allow_sql_injection(
+    func: str, lexer, parser, sample_data_sess
+):
+    query = f"{func}(name, 'x'' UNION SELECT id, name FROM author-- ')"
+    ast = parser.parse(lexer.tokenize(query))
+    where_clause = sql.AstToSqliteSqlVisitor().visit(ast)
+
+    results = sample_data_sess.execute(
+        f"SELECT * FROM author WHERE {where_clause}"
+    ).fetchall()
+    assert results == []

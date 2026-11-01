@@ -66,9 +66,19 @@ def test_ast_to_sql(ast_input: ast._Node, sql_expected: str):
             "'abc' LIKE '%b%'",
         ),
         (
+            "contains",
+            [ast.String("abc"), ast.String("o'b")],
+            "'abc' LIKE '%o''b%'",
+        ),
+        (
             "endswith",
             [ast.String("abc"), ast.String("bc")],
             "'abc' LIKE '%bc'",
+        ),
+        (
+            "endswith",
+            [ast.String("abc"), ast.String("o'c")],
+            "'abc' LIKE '%o''c'",
         ),
         (
             "indexof",
@@ -85,6 +95,11 @@ def test_ast_to_sql(ast_input: ast._Node, sql_expected: str):
             "startswith",
             [ast.String("abc"), ast.String("ab")],
             "'abc' LIKE 'ab%'",
+        ),
+        (
+            "startswith",
+            [ast.String("abc"), ast.String("a'b")],
+            "'abc' LIKE 'a''b%'",
         ),
         (
             "substring",
