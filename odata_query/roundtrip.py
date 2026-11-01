@@ -1,10 +1,4 @@
-import sys
-from typing import Type
-
-if sys.version_info >= (3, 8):
-    from typing import Protocol
-else:
-    from typing_extensions import Protocol
+from typing import Protocol, Type
 
 from odata_query import ast, visitor
 
