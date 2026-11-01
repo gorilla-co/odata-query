@@ -25,6 +25,8 @@ of your choice:
 
     pip install odata-query
     # OR
+    uv add odata-query
+    # OR
     poetry add odata-query
     # OR
     pipenv install odata-query
@@ -34,13 +36,6 @@ The package defines the following optional ``extra``'s:
 
 * ``django``: If you want to pin a compatible Django version.
 * ``sqlalchemy``: If you want to pin a compatible SQLAlchemy version.
-
-
-The following ``extra``'s relate to the development of this library:
-
-- ``linting``: The linting and code style tools.
-- ``testing``: Packages for running the tests.
-- ``docs``: For building the project documentation.
 
 
 You can install ``extra``'s by adding them between square brackets during

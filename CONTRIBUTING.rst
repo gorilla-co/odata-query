@@ -89,31 +89,28 @@ faster the maintainer will be able to respond.
 Local development
 ^^^^^^^^^^^^^^^^^
 
-``odata-query`` uses `poetry`_ to manage the package and its dependencies, and
-`tox`_ to run tests and linting in dedicated environments.
+``odata-query`` uses `uv`_ to manage the package and its dependencies, and
+`poethepoet`_ to run common tasks.
 
 To install the project for development, run:
 
 .. code-block:: bash
 
-    poetry install -E testing -E linting -E docs
+    uv sync
 
 
-To run all tests and linting, run:
-
-.. code-block:: bash
-
-    tox
-
-To ensure your files are configured correctly (linting will bug you if they're not),
-you can configure your IDE to use the included linting tools OR run them manually
-as follows:
-
+To run the tests, run:
 
 .. code-block:: bash
 
-    poetry run black .  # Format files to adhere to the Black code style
-    poetry run isort .  # Ensure the imports are organised correctly
+    uv run poe test
+
+
+To build the documentation, run:
+
+.. code-block:: bash
+
+    uv run poe docs
 
 
 Contact
@@ -128,5 +125,5 @@ everybody can benefit and learn.
 
 .. _Issues: https://github.com/gorilla-co/odata-query/issues
 .. _Pull Requests: https://github.com/gorilla-co/odata-query/pulls
-.. _poetry: https://python-poetry.org/
-.. _tox: https://tox.readthedocs.io/en/latest/index.html
+.. _uv: https://docs.astral.sh/uv/
+.. _poethepoet: https://poethepoet.natn.io/
