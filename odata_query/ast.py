@@ -45,6 +45,8 @@ class _Literal(_Node):
 
 @dataclass(frozen=True)
 class Null(_Literal):
+    val: str
+
     @property
     def py_val(self) -> None:
         return None

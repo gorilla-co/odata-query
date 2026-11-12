@@ -193,7 +193,7 @@ class ODataLexer(Lexer):
     @_(r"null")
     def NULL(self, t):
         ":meta private:"
-        t.value = ast.Null()
+        t.value = ast.Null("null")
         return t
 
     ####################################################################################
