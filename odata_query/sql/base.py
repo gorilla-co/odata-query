@@ -343,14 +343,10 @@ class AstToSqlVisitor(visitor.NodeVisitor):
                 res = f"'{prefix}' || " + res
             if suffix:
                 res = res + f" || '{suffix}'"
-        elif self.phandler:
+        else:
             res = str(arg.val).replace("%", "%%").replace("_", "__")  # type: ignore
             res = prefix + res + suffix
-            return self.phandler.add_parameter(ast.String(res))
-        else:
-            res = str(arg.val).replace("'", "''")  # type: ignore
-            res = res.replace("%", "%%").replace("_", "__")
-            res = "'" + prefix + res + suffix + "'"
+            res = self.phandler.add_parameter(ast.String(res))
 
         return res
 
