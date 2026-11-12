@@ -136,9 +136,17 @@ def test_ast_to_sql_mapping():
             ast.Compare(ast.GtE(), ast.Identifier("total_meters"), ast.Integer("1")),
         ),
     )
-    sql_expected = '"table"."a_column" = \'1\' AND (sum("user_id") <= 10 OR sum("meter_id") >= 1)'
+    sql_expected = (
+        '"table"."a_column" = \'1\' AND (sum("user_id") <= 10 OR sum("meter_id") >= 1)'
+    )
 
-    visitor = sql.AstToSqlVisitor(column_mapping={"total_users": 'sum("user_id")', "total_meters": 'sum("meter_id")', "a": '"table"."a_column"'})
+    visitor = sql.AstToSqlVisitor(
+        column_mapping={
+            "total_users": 'sum("user_id")',
+            "total_meters": 'sum("meter_id")',
+            "a": '"table"."a_column"',
+        }
+    )
     res = visitor.visit(ast_input)
 
     assert res == sql_expected
@@ -272,9 +280,19 @@ def test_ast_to_sql_parametrized(
             "'abc' LIKE '%b%'",
         ),
         (
+            "contains",
+            [ast.String("abc"), ast.String("o'b")],
+            "'abc' LIKE '%o''b%'",
+        ),
+        (
             "endswith",
             [ast.String("abc"), ast.String("bc")],
             "'abc' LIKE '%bc'",
+        ),
+        (
+            "endswith",
+            [ast.String("abc"), ast.String("o'c")],
+            "'abc' LIKE '%o''c'",
         ),
         (
             "indexof",
@@ -291,6 +309,11 @@ def test_ast_to_sql_parametrized(
             "startswith",
             [ast.String("abc"), ast.String("ab")],
             "'abc' LIKE 'ab%'",
+        ),
+        (
+            "startswith",
+            [ast.String("abc"), ast.String("a'b")],
+            "'abc' LIKE 'a''b%'",
         ),
         (
             "substring",

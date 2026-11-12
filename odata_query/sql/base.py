@@ -123,7 +123,7 @@ class AstToSqlVisitor(visitor.NodeVisitor):
         ":meta private:"
         # Double quotes for column names acc SQL Standard
         sql_id = f'"{node.name}"'
-        
+
         if node.name in self.column_mapping:
             sql_id = self.column_mapping[node.name]
 
@@ -343,10 +343,14 @@ class AstToSqlVisitor(visitor.NodeVisitor):
                 res = f"'{prefix}' || " + res
             if suffix:
                 res = res + f" || '{suffix}'"
-        else:
+        elif self.phandler:
             res = str(arg.val).replace("%", "%%").replace("_", "__")  # type: ignore
             res = prefix + res + suffix
             return self.phandler.add_parameter(ast.String(res))
+        else:
+            res = str(arg.val).replace("'", "''")  # type: ignore
+            res = res.replace("%", "%%").replace("_", "__")
+            res = "'" + prefix + res + suffix + "'"
 
         return res
 

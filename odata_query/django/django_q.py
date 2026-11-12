@@ -1,9 +1,7 @@
 import operator
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Type, Union
-from uuid import UUID
 
-import django
 from django.db.models import (
     Case,
     Exists,
@@ -25,31 +23,14 @@ try:
 
     _gis_error = None
 except Exception as e:
-    gis_functions = None
-    GEOSGeometry = None
+    gis_functions: Any = None
+    GEOSGeometry: Any = None
     _gis_error = e
 
 from odata_query import ast, exceptions as ex, typing, utils, visitor
 
 from .django_q_ext import NotEqual
 from .utils import reverse_relationship
-
-DJANGO_LT_4 = django.VERSION[0] < 4
-
-COMPARISON_FLIP = {
-    lookups.Exact: lookups.Exact,
-    NotEqual: NotEqual,
-    lookups.LessThan: lookups.GreaterThan,
-    lookups.LessThanOrEqual: lookups.GreaterThanOrEqual,
-    lookups.GreaterThan: lookups.LessThan,
-    lookups.GreaterThanOrEqual: lookups.LessThanOrEqual,
-    ast.Eq: ast.Eq,
-    ast.NotEq: ast.NotEq,
-    ast.Lt: ast.Gt,
-    ast.LtE: ast.GtE,
-    ast.Gt: ast.Lt,
-    ast.GtE: ast.LtE,
-}
 
 
 def requires_gis(func):
@@ -250,10 +231,6 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
             raise ex.TypeException(node.op.__class__.__name__, left)
         if isinstance(right, (F, Value)):
             raise ex.TypeException(node.op.__class__.__name__, right)
-
-        if DJANGO_LT_4:
-            left = self._ensure_q(left)
-            right = self._ensure_q(right)
 
         op = self.visit(node.op)
 
@@ -471,45 +448,14 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
 
         return django_func(self.visit(field), self.visit(substr))
 
-    def _fix_uuid(self, node: Any) -> Any:
-        # Workaround for Django <4 'Value is not a valid UUID':
-        if isinstance(node, Value) and isinstance(node.value, UUID):
-            return node.value
-
-        if isinstance(node, list):
-            return [self._fix_uuid(i) for i in node]
-
-        return node
-
     def _ensure_q(self, node: Any) -> Q:
         """
         Turn a given Django `Lookup`, `Expression` or `Function` into a `Q` object.
-        This is mainly necessary for Django <4 where the nodes cannot be directly
-        used in `Q` objects and have to be expressed as `Q(keyword=value)`.
         """
         if isinstance(node, (Q, Exists)):
             return node
 
-        if not DJANGO_LT_4:
-            return Q(node)
-
-        # Need an identifier on any side to make a Django Q:
-        keyword = self._attempt_keywordify(node.lhs)
-        if not keyword:
-            # No keyword on the left, try the right:
-            keyword = self._attempt_keywordify(node.rhs)
-            if keyword:
-                node = self._flip_comparison(node)
-            else:
-                # No keywords at all, cannot continue:
-                raise ex.TypeException(node.__class__.__name__, str(node.lhs))
-
-        if isinstance(node, lookups.Lookup):
-            keyword += "__" + node.lookup_name
-
-        node.rhs = self._fix_uuid(node.rhs)
-        query = Q(**{keyword: node.rhs})
-        return query
+        return Q(node)
 
     def _attempt_keywordify(self, node: Any) -> Optional[str]:
         """
@@ -554,8 +500,6 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         # Lookups with parameters need to be wrapped in a `CASE WHEN` expression
         if isinstance(res, lookups.Lookup):
             identity = self._gen_annotation_name(res)
-            if DJANGO_LT_4:
-                res = self._ensure_q(res)
             res = Case(When(res, then=True), default=False)
             self.queryset_annotations[identity] = res
             return identity
@@ -592,16 +536,3 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
             .replace(":", "_")
             .lower()
         )
-
-    @staticmethod
-    def _flip_comparison(comp: lookups.Lookup) -> lookups.Lookup:
-        """
-        Flip a comparison left-to-right. E.g.: (4 > version_id) becomes (version_id < 4)
-
-        :meta private:
-        """
-        new_op = COMPARISON_FLIP[type(comp)]
-        new_left = comp.rhs
-        new_right = comp.lhs
-
-        return new_op(new_left, new_right)

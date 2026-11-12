@@ -5,7 +5,6 @@ import pytest
 from django.db import models, transaction
 
 from odata_query.django import apply_odata_query
-from odata_query.django.django_q import DJANGO_LT_4
 
 from .models import Author, BlogPost, Comment
 
@@ -58,14 +57,10 @@ def sample_data_sess(django_db):
         (BlogPost, "authors/all(a: contains(a/name, 'o'))", 1),
         (Author, "blogposts/comments/any(c: contains(c/content, 'Cool'))", 2),
         (Author, "id eq a7af27e6-f5a0-11e9-9649-0a252986adba", 0),
-        pytest.param(
+        (
             Author,
             "id in (a7af27e6-f5a0-11e9-9649-0a252986adba, 800c56e4-354d-11eb-be38-3af9d323e83c)",
             0,
-            marks=pytest.mark.xfail(
-                not DJANGO_LT_4,
-                reason="Bug related to https://code.djangoproject.com/ticket/33705",
-            ),
         ),
         (BlogPost, "comments/author eq 0", 0),
         (BlogPost, "substring(content, 0) eq 'test'", 0),
@@ -86,10 +81,6 @@ def test_query_with_odata(
     assert len(results) == exp_results
 
 
-@pytest.mark.xfail(
-    not DJANGO_LT_4,
-    reason="Bug fixed in unreleased version: https://code.djangoproject.com/ticket/33705",
-)
 @pytest.mark.parametrize(
     "odata_query, expected_sql",
     [

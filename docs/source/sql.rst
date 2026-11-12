@@ -43,6 +43,18 @@ Finally, we're ready to run the query:
     query = "SELECT * FROM my_table WHERE " + where_clause
     results = conn.execute(query).fetchall()
 
+.. warning::
+
+    The generated clause embeds values from the OData query as SQL literals,
+    because the raw SQL backends cannot use bound parameters. Escaping is
+    implemented for the characters that are special in standard SQL strings
+    only. If your database treats other characters specially inside string
+    literals (for example backslashes in MySQL), values may still break out of
+    the literal. Prefer the :doc:`SQLAlchemy <sqlalchemy>` or
+    :doc:`Django <django>` backends for untrusted input, as they use bound
+    parameters. Otherwise, run the query with a read-only database user that
+    can only reach the tables the filter is meant to query.
+
 
 Supported dialects
 ^^^^^^^^^^^^^^^^^^
