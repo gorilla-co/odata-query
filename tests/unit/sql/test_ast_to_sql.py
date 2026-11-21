@@ -172,3 +172,20 @@ def test_ast_to_sql_functions(func_name: str, args: List[ast._Node], sql_expecte
     res = visitor.visit(inp_ast)
 
     assert res == sql_expected
+
+
+@pytest.mark.parametrize(
+    "ast_input",
+    [
+        ast.Attribute(ast.Identifier("author"), "name"),
+        ast.Compare(
+            ast.Eq(),
+            ast.Attribute(ast.Identifier("author"), "name"),
+            ast.String("Gorilla"),
+        ),
+        ast.CollectionLambda(ast.Identifier("authors"), ast.Any(), None),
+    ],
+)
+def test_relationships_are_not_silently_dropped(ast_input: ast._Node):
+    with pytest.raises(NotImplementedError):
+        sql.AstToSqlVisitor().visit(ast_input)
