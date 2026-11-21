@@ -3,7 +3,7 @@ from typing import List, Optional
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ClauseElement, Select
 
-from odata_query.grammar import ODataLexer, ODataParser
+from odata_query.grammar import ODataLexer, ODataParser, parse_orderby
 from odata_query.utils import validate_top_and_skip
 
 from .core import AstToSqlAlchemyCoreVisitor
@@ -16,6 +16,14 @@ def _get_joined_attrs(query: Select) -> List[str]:
         getattr(query, "_legacy_setup_joins", query._setup_joins) or query._setup_joins
     )
     return [str(join[0]) for join in setup_joins]
+
+
+def _apply_ordering(
+    query: ClauseElement, ordering: List[ClauseElement]
+) -> ClauseElement:
+    # The OData ordering takes precedence, ordering that was already on the
+    # query still breaks ties.
+    return query.order_by(None).order_by(*ordering, *query._order_by_clauses)
 
 
 def _apply_paging(
@@ -32,6 +40,7 @@ def apply_odata_query(
     query: ClauseElement,
     odata_query: str,
     *,
+    orderby: Optional[str] = None,
     top: Optional[int] = None,
     skip: Optional[int] = None,
 ) -> ClauseElement:
@@ -41,8 +50,14 @@ def apply_odata_query(
     Args:
         query: SQLAlchemy query to apply the OData query to.
         odata_query: OData ``$filter`` expression.
-        top: Maximum number of results to return (OData ``$top``).
-        skip: Number of results to skip (OData ``$skip``).
+        orderby: OData ``$orderby`` expression, e.g. ``"name, age desc"``. It
+            takes precedence over any ordering already on ``query``, which
+            then only breaks ties. ``NULL`` sorts first when ascending and
+            last when descending.
+        top: Maximum number of results to return (OData ``$top``). Replaces
+            any limit already on ``query``.
+        skip: Number of results to skip (OData ``$skip``). Replaces any
+            offset already on ``query``.
     Returns:
         ClauseElement: The modified query. Filters across collection
         relationships can return a row once per match; start from
@@ -50,8 +65,11 @@ def apply_odata_query(
     Raises:
         InvalidQueryOptionException: If ``top`` or ``skip`` is not a
             non-negative integer.
+        InvalidOrderByException: If ``orderby`` sorts on a collection or on
+            something that is not a value.
     """
     validate_top_and_skip(top, skip)
+    orderby_ast = parse_orderby(orderby) if orderby is not None else None
 
     lexer = ODataLexer()
     parser = ODataParser()
@@ -69,23 +87,31 @@ def apply_odata_query(
     ast = parser.parse(lexer.tokenize(odata_query))
     transformer = AstToSqlAlchemyOrmVisitor(model)
     where_clause = transformer.visit(ast)
+    n_filter_joins = len(transformer.join_relationships)
+    ordering = transformer.visit(orderby_ast) if orderby_ast else []
 
     existing_joins = _get_joined_attrs(query)
-    for required_join in transformer.join_relationships:
+    for i, required_join in enumerate(transformer.join_relationships):
         if (
             str(required_join) not in existing_joins
             and str(required_join.key) not in existing_joins
         ):
-            query = query.join(required_join)
+            # Ordering must not drop rows that have no related entity.
+            join = query.join if i < n_filter_joins else query.outerjoin
+            query = join(required_join)
             existing_joins.append(str(required_join))
 
-    return _apply_paging(query.filter(where_clause), top, skip)
+    query = query.filter(where_clause)
+    if ordering:
+        query = _apply_ordering(query, ordering)
+    return _apply_paging(query, top, skip)
 
 
 def apply_odata_core(
     query: ClauseElement,
     odata_query: str,
     *,
+    orderby: Optional[str] = None,
     top: Optional[int] = None,
     skip: Optional[int] = None,
 ) -> ClauseElement:
@@ -95,8 +121,14 @@ def apply_odata_core(
     Args:
         query: SQLAlchemy query to apply the OData query to.
         odata_query: OData ``$filter`` expression.
-        top: Maximum number of results to return (OData ``$top``).
-        skip: Number of results to skip (OData ``$skip``).
+        orderby: OData ``$orderby`` expression, e.g. ``"name, age desc"``. It
+            takes precedence over any ordering already on ``query``, which
+            then only breaks ties. ``NULL`` sorts first when ascending and
+            last when descending.
+        top: Maximum number of results to return (OData ``$top``). Replaces
+            any limit already on ``query``.
+        skip: Number of results to skip (OData ``$skip``). Replaces any
+            offset already on ``query``.
     Returns:
         ClauseElement: The modified query. Filters across collection
         relationships can return a row once per match; start from
@@ -104,8 +136,11 @@ def apply_odata_core(
     Raises:
         InvalidQueryOptionException: If ``top`` or ``skip`` is not a
             non-negative integer.
+        InvalidOrderByException: If ``orderby`` sorts on a collection or on
+            something that is not a value.
     """
     validate_top_and_skip(top, skip)
+    orderby_ast = parse_orderby(orderby) if orderby is not None else None
 
     lexer = ODataLexer()
     parser = ODataParser()
@@ -114,4 +149,9 @@ def apply_odata_core(
     ast = parser.parse(lexer.tokenize(odata_query))
     transformer = AstToSqlAlchemyCoreVisitor(table)
     where_clause = transformer.visit(ast)
-    return _apply_paging(query.filter(where_clause), top, skip)
+    ordering = transformer.visit(orderby_ast) if orderby_ast else []
+
+    query = query.filter(where_clause)
+    if ordering:
+        query = _apply_ordering(query, ordering)
+    return _apply_paging(query, top, skip)

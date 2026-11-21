@@ -9,6 +9,7 @@ from sqlalchemy.sql.expression import BinaryExpression, ClauseElement, ColumnCla
 from odata_query import ast, exceptions as ex, utils, visitor
 
 from . import common
+from .ordering_ext import SpecOrdering
 
 
 class AstToSqlAlchemyOrmVisitor(common._CommonVisitors, visitor.NodeVisitor):
@@ -48,6 +49,25 @@ class AstToSqlAlchemyOrmVisitor(common._CommonVisitors, visitor.NodeVisitor):
             return getattr(owner_cls, node.attr)
         except AttributeError:
             raise ex.InvalidFieldException(node.attr)
+
+    def visit_OrderByItem(self, node: ast.OrderByItem) -> ClauseElement:
+        ":meta private:"
+        n_joins_before = len(self.join_relationships)
+        expression = self.visit(node.expression)
+
+        # Sorting on a collection would repeat the root rows, and OData only
+        # allows sorting on primitive values.
+        for relationship in self.join_relationships[n_joins_before:]:
+            if inspect(relationship).property.uselist:
+                raise ex.InvalidOrderByException(relationship.key, "it is a collection")
+        sort_key = getattr(inspect(expression, raiseerr=False), "property", None)
+        if isinstance(sort_key, RelationshipProperty):
+            raise ex.InvalidOrderByException(sort_key.key, "it is not a value")
+
+        # A column that cannot be NULL still is when its row has no related entity.
+        joined_a_relationship = len(self.join_relationships) > n_joins_before
+        may_be_null = joined_a_relationship or getattr(expression, "nullable", True)
+        return SpecOrdering(expression, node.ascending, may_be_null)
 
     def visit_Compare(self, node: ast.Compare) -> BinaryExpression:
         ":meta private:"

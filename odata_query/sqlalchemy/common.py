@@ -1,5 +1,5 @@
 import operator
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 from sqlalchemy.sql import functions
 from sqlalchemy.sql.expression import (
@@ -24,6 +24,7 @@ from sqlalchemy.types import Date, Time
 from odata_query import ast, exceptions as ex, typing, visitor
 
 from . import functions_ext
+from .ordering_ext import SpecOrdering
 
 
 class _CommonVisitors(visitor.NodeVisitor):
@@ -189,6 +190,17 @@ class _CommonVisitors(visitor.NodeVisitor):
             return mod(val)
         except TypeError:
             raise ex.TypeException(node.op.__class__.__name__, val)
+
+    def visit_OrderByItem(self, node: ast.OrderByItem) -> ClauseElement:
+        ":meta private:"
+        expression = self.visit(node.expression)
+        return SpecOrdering(
+            expression, node.ascending, getattr(expression, "nullable", True)
+        )
+
+    def visit_OrderBy(self, node: ast.OrderBy) -> List[ClauseElement]:
+        ":meta private:"
+        return [self.visit(item) for item in node.items]
 
     def visit_Call(self, node: ast.Call) -> ClauseElement:
         ":meta private:"
