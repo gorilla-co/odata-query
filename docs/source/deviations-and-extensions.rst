@@ -61,4 +61,57 @@ based on average durations.
 Thus, a month simply represents 30.44 days, while a year represents 365.25 days.
 
 
+Ordering and paging are keyword arguments
+-----------------------------------------
+
+The OData ``$orderby``, ``$top`` and ``$skip`` system query options are not
+parsed from a query string. The shorthands take them as the keyword arguments
+``orderby``, ``top`` and ``skip``, so applications can use the query string
+parsing of their web framework. ``top`` and ``skip`` must be non-negative
+integers, and ``skip`` is applied before ``top`` as the spec requires.
+
+Other system query options, such as ``$count``, ``$select`` and ``$expand``,
+are not supported yet.
+
+
+Ordering is limited to values
+-----------------------------
+
+The spec allows ``$orderby`` to sort on any expression, including the count of
+a collection (``$orderby=Products/$count``). This library supports expressions
+that the ``$filter`` supports, with one restriction: they cannot refer to a
+collection, or to an entity instead of one of its properties. Those raise an
+``InvalidOrderByException``. A collection would repeat the rows of the root
+entity, and an entity has no order of its own.
+
+In SQL, ordering by properties of a related entity is only supported by the
+SQLAlchemy ORM and Django backends.
+
+The ``asc`` and ``desc`` keywords are case-insensitive, and whitespace around
+the commas of the list is accepted, which is more lenient than the ABNF.
+
+
+Where NULL sorts
+----------------
+
+The spec says ``NULL`` sorts before any value when ascending, and after any
+value when descending. Databases disagree on their defaults, so the backends
+make it explicit where the database needs it:
+
+* SQLAlchemy emits ``NULLS FIRST``/``NULLS LAST`` for every dialect except
+  SQLite, MySQL, MariaDB and SQL Server, which sort ``NULL`` that way already
+  and get no suffix. The suffix is also left out for columns that cannot be
+  ``NULL``, so databases can use an index.
+* Django uses ``nulls_first``/``nulls_last``, which Django emulates for
+  databases that do not support them. It skips fields of the root model that
+  cannot be ``NULL``.
+* The standard SQL visitor emits ``NULLS FIRST``/``NULLS LAST``, as does the
+  Athena visitor. The SQLite visitor emits nothing. Other databases may need a
+  subclass, see :doc:`sql`.
+
+Ordering by a boolean expression, such as ``price gt 5``, sorts ``false``
+before ``true`` as the spec says, but needs a database that accepts a predicate
+in ``ORDER BY``. PostgreSQL, SQLite and MySQL do, SQL Server and Oracle do not.
+
+
 .. _spec: https://www.odata.org/documentation/

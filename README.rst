@@ -90,6 +90,13 @@ Example for SQLAlchemy Core:
     query = apply_odata_core(core_query, odata_query)
     results = session.execute(query).scalars().all()
 
+``apply_odata_query`` also takes the ``$orderby``, ``$top`` and ``$skip`` query
+options, as the keyword arguments ``orderby``, ``top`` and ``skip``:
+
+.. code-block:: python
+
+    query = apply_odata_query(orm_query, "name eq 'test'", orderby="age desc", top=10, skip=20)
+
 .. splitinclude-1
 
 Advanced Usage
