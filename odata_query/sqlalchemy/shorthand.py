@@ -77,6 +77,7 @@ def apply_odata_query(
             and str(required_join.key) not in existing_joins
         ):
             query = query.join(required_join)
+            existing_joins.append(str(required_join))
 
     return _apply_paging(query.filter(where_clause), top, skip)
 
