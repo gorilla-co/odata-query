@@ -151,6 +151,27 @@ def test_query_with_existing_join(apply_func, sample_data_sess):
     assert len(results) == exp_results
 
 
+@pytest.mark.parametrize(
+    "apply_func",
+    [
+        pytest.param(apply_odata_query, id="ORM"),
+        pytest.param(apply_odata_query_bc_sqla1, id="ORM 1.x"),
+    ],
+)
+def test_query_using_the_same_relationship_twice_joins_it_once(
+    apply_func, sample_data_sess
+):
+    odata_query = "author/name eq 'Gorilla' or author/name eq 'Baboon'"
+
+    if apply_func is apply_odata_query_bc_sqla1:
+        results = apply_func(sample_data_sess.query(Comment), odata_query).all()
+    else:
+        q = apply_func(select(Comment), odata_query)
+        results = sample_data_sess.execute(q).scalars().all()
+
+    assert len(results) == 2
+
+
 def _author_query(apply_func, session, odata_query, **options):
     """
     Authors ordered by name (Baboon, Gorilla, Saki), as a list of names.
