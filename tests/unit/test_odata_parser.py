@@ -24,6 +24,13 @@ def parse(stmt: str, start_symbol: str = None):
     return parser.parse(lexer.tokenize(stmt))
 
 
+@pytest.fixture(scope="module", autouse=True)
+def restore_default_start_symbol():
+    yield
+    ODataParser.start = "odata_input"
+    ODataParser._build(list(ODataParser.__dict__.items()))
+
+
 @pytest.mark.parametrize(
     "value, expected_type",
     [

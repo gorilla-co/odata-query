@@ -5,6 +5,7 @@ Implemented with `SLY <https://sly.readthedocs.io/en/latest/>`_.
 """
 
 import re
+from itertools import chain
 from typing import List, Optional, Union
 
 from sly import Lexer, Parser
@@ -331,7 +332,10 @@ class ODataLexer(Lexer):
 
 class ODataParser(Parser):
     debugfile = None
-    tokens = ODataLexer.tokens
+    # NOTE: ORDERBY_START is not part of the OData ABNF. The parser has two
+    # entry points, `$filter` and `$orderby`, and an LALR parser needs a first
+    # token to tell them apart. `parse_orderby` prepends it.
+    tokens = ODataLexer.tokens | {"ORDERBY_START"}
 
     # Predecence from low to high.
     # See: https://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/part2-url-conventions/odata-v4.0-errata03-os-part2-url-conventions-complete.html#_Toc453752358
@@ -358,6 +362,43 @@ class ODataParser(Parser):
         """
         eof = token is None
         raise exceptions.ParsingException(token, eof)
+
+    @_("common_expr")
+    def odata_input(self, p):
+        ":meta private:"
+        return p.common_expr
+
+    @_("ORDERBY_START BWS orderby")
+    def odata_input(self, p):
+        ":meta private:"
+        return p.orderby
+
+    ####################################################################################
+    # $orderby
+    ####################################################################################
+    @_("orderby_item")
+    def orderby(self, p):
+        ":meta private:"
+        return ast.OrderBy([p.orderby_item])
+
+    @_('orderby "," BWS orderby_item')
+    def orderby(self, p):
+        ":meta private:"
+        return ast.OrderBy(p.orderby.items + [p.orderby_item])
+
+    @_("common_expr", "common_expr WS")
+    def orderby_item(self, p):
+        ":meta private:"
+        return ast.OrderByItem(p.common_expr)
+
+    @_("common_expr WS ODATA_IDENTIFIER", "common_expr WS ODATA_IDENTIFIER WS")
+    def orderby_item(self, p):
+        ":meta private:"
+        # asc and desc are not reserved words, they only lex as identifiers.
+        direction = p.ODATA_IDENTIFIER
+        if direction.namespace or direction.name.lower() not in ("asc", "desc"):
+            self.error(p._slice[2])
+        return ast.OrderByItem(p.common_expr, ascending=direction.name.lower() == "asc")
 
     @_('"(" BWS common_expr BWS ")"')
     def common_expr(self, p):
@@ -697,3 +738,31 @@ class ODataParser(Parser):
             raise NotImplementedError
 
         return exploded
+
+
+def parse_orderby(orderby: str) -> ast.OrderBy:
+    """
+    Parses the value of an OData ``$orderby`` query option: a comma separated
+    list of expressions that are each optionally followed by ``asc`` or
+    ``desc``.
+
+    ``asc`` and ``desc`` are not reserved, so ``name eq asc`` still compares
+    ``name`` with a property called ``asc``.
+
+    Args:
+        orderby: The value of the ``$orderby`` option, without the option name.
+    Returns:
+        An :class:`odata_query.ast.OrderBy` with one item per expression.
+    Raises:
+        TokenizingException: If ``orderby`` cannot be tokenized.
+        ParsingException: If ``orderby`` has an empty or invalid item.
+        FunctionCallException: If an item calls an unknown function or calls a
+            function with the wrong arguments.
+    """
+    start = Token()
+    start.type = "ORDERBY_START"
+    start.value = None
+    start.lineno = 1
+    start.index = 0
+
+    return ODataParser().parse(chain([start], ODataLexer().tokenize(orderby)))

@@ -34,6 +34,16 @@ def test_node_transformer_without_methods_doesnt_modify_tree(simple_ast):
     assert simple_ast == new_tree
 
 
+def test_node_transformer_keeps_order_by_direction():
+    order_by = ast.OrderBy(
+        [
+            ast.OrderByItem(ast.Identifier("a"), ascending=False),
+            ast.OrderByItem(ast.Identifier("b"), ascending=True),
+        ]
+    )
+    assert visitor.NodeTransformer().visit(order_by) == order_by
+
+
 def test_node_transformer_simple(simple_ast):
     class Inverter(visitor.NodeTransformer):
         """Simple transformer that inverts equality checks"""
