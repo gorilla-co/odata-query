@@ -11,6 +11,7 @@ Submodules
    odata_query.sqlalchemy.core
    odata_query.sqlalchemy.functions_ext
    odata_query.sqlalchemy.orm
+   odata_query.sqlalchemy.ordering_ext
    odata_query.sqlalchemy.shorthand
 
 Module contents

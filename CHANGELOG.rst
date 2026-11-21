@@ -7,6 +7,37 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_, and
 this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+*************
+ [Unreleased]
+*************
+
+Added
+=====
+
+- Support for the ``$orderby``, ``$top`` and ``$skip`` query options, as the keyword arguments
+  ``orderby``, ``top`` and ``skip`` of the SQLAlchemy and Django ``apply_odata_*`` shorthands. See
+  ``docs/source/deviations-and-extensions.rst`` for where ``NULL`` sorts and what can be ordered
+  on. Based on a contribution by Dmitrii (#66).
+- ``odata_query.grammar.parse_orderby`` and the ``OrderBy`` and ``OrderByItem`` AST nodes, which
+  the ``roundtrip`` visitor supports too.
+- The raw SQL visitors can turn a parsed ``$orderby`` into ``ORDER BY`` items, and have a
+  ``paging_clause`` method for ``$top`` and ``$skip``.
+- ``InvalidQueryOptionException`` and ``InvalidOrderByException``.
+
+Changed
+=======
+
+- ``ODataParser`` has a new start rule ``odata_input`` and a synthetic ``ORDERBY_START`` token,
+  which ``parse_orderby`` prepends. Parsing a ``$filter`` expression is unchanged.
+
+Fixed
+=====
+
+- SQLAlchemy: a filter that uses the same relationship more than once, such as
+  ``author/name eq 'a' or author/name eq 'b'``, no longer joins it twice.
+- SQL: relationship traversal raises ``NotImplementedError`` instead of silently generating
+  ``None`` in the clause.
+
 ***********************
  [0.11.0] - 2026-11-01
 ***********************

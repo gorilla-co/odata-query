@@ -42,6 +42,46 @@ SQLAlchemy Core
     results = session.execute(query).scalars().all()
 
 
+Ordering and paging
+^^^^^^^^^^^^^^^^^^^
+
+The OData ``$orderby``, ``$top`` and ``$skip`` query options are keyword
+arguments of both shorthands. They take the value of the option, without the
+option name:
+
+.. code-block:: python
+
+    query = apply_odata_query(
+        select(MyModel),
+        "name eq 'test'",
+        orderby="created_at desc, name",  # From the ``$orderby`` query parameter.
+        top=10,  # From the ``$top`` query parameter, already converted to an ``int``.
+        skip=20,  # From the ``$skip`` query parameter, already converted to an ``int``.
+    )
+
+``orderby`` takes precedence over any ordering that is already on the query,
+which then only breaks ties. Paging is applied after filtering and ordering.
+Without an ordering, the database does not guarantee a stable order between
+pages, so make sure the query has one.
+
+``NULL`` sorts first when ascending and last when descending, as OData
+requires. See :doc:`deviations-and-extensions` for how that is done per
+database.
+
+You can order by properties of related entities that have one value (e.g.
+``author/name``), which are outer joined so rows without one are kept.
+Ordering by a collection (e.g. ``blogposts/title``) or by an entity instead of
+a value raises an :py:class:`odata_query.exceptions.InvalidOrderByException`.
+
+.. note::
+
+   A filter over a collection (e.g. ``blogposts/title eq 'x'``) can return a
+   root row once per match. Start from ``select(MyModel).distinct()`` to page
+   over unique rows. Note that some databases, such as PostgreSQL, require the
+   ``orderby`` of a ``DISTINCT`` query to only use selected columns, so it
+   cannot order by a related entity then.
+
+
 Advanced Usage
 --------------
 
@@ -112,6 +152,26 @@ applied explicitly:
 
     for j in visitor.join_relationships:
         query = query.join(j)
+
+
+Optional: Ordering
+^^^^^^^^^^^^^^^^^^
+
+A ``$orderby`` value is parsed with :py:func:`odata_query.grammar.parse_orderby`.
+The same visitor turns it into a list of ``ORDER BY`` items. Reuse the visitor
+that built the filter, so that joins for both end up in
+``visitor.join_relationships``:
+
+.. code-block:: python
+
+    from odata_query.grammar import parse_orderby
+
+    ordering = visitor.visit(parse_orderby("name desc"))
+    query = query.order_by(*ordering)
+
+Relationships that are only used for ordering should be joined with
+``query.outerjoin(j)`` instead of ``query.join(j)``, so that rows without a
+related entity are kept.
 
 
 Running the query
