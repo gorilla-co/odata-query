@@ -1,3 +1,5 @@
+from typing import Optional
+
 from odata_query import ast, exceptions, typing
 
 from .base import AstToSqlVisitor
@@ -11,6 +13,20 @@ class AstToSqliteSqlVisitor(AstToSqlVisitor):
     Args:
         table_alias: Optional alias for the root table.
     """
+
+    def _nulls_ordering(self, ascending: bool) -> str:
+        ":meta private:"
+        # NULL is smaller than any value, which is the order OData asks for.
+        # Older SQLite versions do not support NULLS FIRST/LAST.
+        return ""
+
+    def _paging(self, top: Optional[int], skip: Optional[int]) -> str:
+        ":meta private:"
+        # SQLite does not accept an OFFSET without a LIMIT.
+        clause = f"LIMIT {-1 if top is None else top}"
+        if skip is not None:
+            clause += f" OFFSET {skip}"
+        return clause
 
     def visit_Boolean(self, node: ast.Boolean) -> str:
         """:meta private:"""

@@ -1,6 +1,9 @@
+import sqlite3
+
 import pytest
 
 from odata_query import sql
+from odata_query.grammar import ODataLexer, ODataParser, parse_orderby
 
 
 @pytest.fixture
@@ -83,3 +86,113 @@ def test_like_functions_do_not_allow_sql_injection(
         f"SELECT * FROM author WHERE {where_clause}"
     ).fetchall()
     assert results == []
+
+
+@pytest.fixture
+def comments_sess(sample_data_sess):
+    """
+    Adds a comment without author or content, and a second 'Cool!' comment.
+    Comments by id: 1 'Dope!' (author 2), 2 'Cool!' (author 1),
+    3 NULL (no author), 4 'Cool!' (author 3).
+    """
+    sample_data_sess.execute(
+        "INSERT INTO comment (content, author_id, blogpost_id) VALUES "
+        "(NULL, NULL, 1), "
+        "('Cool!', 3, 1)"
+    )
+    return sample_data_sess
+
+
+def _comment_ids(
+    cur, odata_filter="true eq true", orderby=None, top=None, skip=None, visitor=None
+) -> list:
+    visitor = visitor or sql.AstToSqliteSqlVisitor()
+    where_clause = visitor.visit(
+        ODataParser().parse(ODataLexer().tokenize(odata_filter))
+    )
+    query = f'SELECT id FROM "comment" WHERE {where_clause}'
+    if orderby is not None:
+        query += " ORDER BY " + visitor.visit(parse_orderby(orderby))
+    query += " " + visitor.paging_clause(top, skip)
+
+    return [row[0] for row in cur.execute(query).fetchall()]
+
+
+@pytest.mark.parametrize(
+    "orderby, exp_ids",
+    [
+        # NULL sorts first when ascending, last when descending:
+        ("content", [3, 2, 4, 1]),
+        ("content asc", [3, 2, 4, 1]),
+        ("content desc", [1, 2, 4, 3]),
+        # Ties are broken by the next item:
+        ("content, id desc", [3, 4, 2, 1]),
+        ("content desc, id desc", [1, 4, 2, 3]),
+        ("id desc", [4, 3, 2, 1]),
+        ("author_id desc", [4, 1, 2, 3]),
+        # Expressions can contain NULL too:
+        ("length(content), id", [3, 1, 2, 4]),
+        ("tolower(content) desc, id desc", [1, 4, 2, 3]),
+        ("content eq 'Cool!' desc, id", [2, 4, 1, 3]),
+        ("content eq 'Cool!', id desc", [3, 1, 4, 2]),
+        ("id mod 2 desc, id", [1, 3, 2, 4]),
+    ],
+)
+def test_orderby(orderby, exp_ids, comments_sess):
+    assert _comment_ids(comments_sess, orderby=orderby) == exp_ids
+
+
+@pytest.mark.skipif(
+    sqlite3.sqlite_version_info < (3, 30, 0),
+    reason="SQLite only supports NULLS FIRST/LAST since 3.30",
+)
+@pytest.mark.parametrize(
+    "orderby, exp_ids",
+    [
+        ("content", [3, 2, 4, 1]),
+        ("content desc", [1, 2, 4, 3]),
+        ("content, id desc", [3, 4, 2, 1]),
+        ("tolower(content) desc, id", [1, 2, 4, 3]),
+    ],
+)
+def test_orderby_with_explicit_null_ordering_of_the_standard_visitor(
+    orderby, exp_ids, comments_sess
+):
+    ids = _comment_ids(comments_sess, orderby=orderby, visitor=sql.AstToSqlVisitor())
+
+    assert ids == exp_ids
+
+
+@pytest.mark.parametrize(
+    "where, orderby, top, skip, exp_ids",
+    [
+        (None, "id", None, None, [1, 2, 3, 4]),
+        (None, "id", 2, None, [1, 2]),
+        (None, "id", None, 1, [2, 3, 4]),
+        # Distinguishes a plain offset from `skip * top`, and from swapped args:
+        (None, "id", 2, 1, [2, 3]),
+        (None, "id", 1, 2, [3]),
+        # Boundaries:
+        (None, "id", 0, None, []),
+        (None, "id", 0, 1, []),
+        (None, "id", None, 0, [1, 2, 3, 4]),
+        (None, "id", 10, None, [1, 2, 3, 4]),
+        (None, "id", None, 4, []),
+        (None, "id", 5, 10, []),
+        # Paging happens after ordering, and after filtering:
+        (None, "content desc, id", 2, 1, [2, 4]),
+        (None, "content, id desc", 3, 1, [4, 2, 1]),
+        ("id gt 1", "content desc, id", 2, 1, [4, 3]),
+        ("id gt 1", "id desc", None, 1, [3, 2]),
+        ("id gt 100", "id", 2, 1, []),
+        # Without ordering, paging still returns rows:
+        (None, None, 2, None, None),
+    ],
+)
+def test_orderby_with_top_and_skip(where, orderby, top, skip, exp_ids, comments_sess):
+    ids = _comment_ids(comments_sess, where or "true eq true", orderby, top, skip)
+
+    if exp_ids is None:
+        assert len(ids) == top
+    else:
+        assert ids == exp_ids
