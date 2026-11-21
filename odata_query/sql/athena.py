@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from odata_query import ast, exceptions, typing
 
@@ -40,6 +41,16 @@ class AstToAthenaSqlVisitor(AstToSqlVisitor):
             sql_id = f'"{self.table_alias}".' + sql_id
 
         return sql_id
+
+    def _paging(self, top: Optional[int], skip: Optional[int]) -> str:
+        ":meta private:"
+        # Athena wants OFFSET before LIMIT.
+        parts = []
+        if skip is not None:
+            parts.append(f"OFFSET {skip}")
+        if top is not None:
+            parts.append(f"LIMIT {top}")
+        return " ".join(parts)
 
     def visit_DateTime(self, node: ast.DateTime) -> str:
         ":meta private:"

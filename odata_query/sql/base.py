@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from odata_query import ast, exceptions, typing, visitor
+from odata_query import ast, exceptions, typing, utils, visitor
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +28,68 @@ class AstToSqlVisitor(visitor.NodeVisitor):
             sql_id = f'"{self.table_alias}".' + sql_id
 
         return sql_id
+
+    def visit_OrderBy(self, node: ast.OrderBy) -> str:
+        """
+        Turns an ``$orderby`` :term:`AST` into the part of an ``ORDER BY``
+        clause that follows the keyword.
+
+        NULL sorts first when ascending and last when descending, as OData
+        requires.
+        """
+        return ", ".join(self.visit(item) for item in node.items)
+
+    def visit_OrderByItem(self, node: ast.OrderByItem) -> str:
+        ":meta private:"
+        sort_key = self.visit(node.expression)
+        if node.ascending:
+            return f"{sort_key} ASC{self._nulls_ordering(ascending=True)}"
+        return f"{sort_key} DESC{self._nulls_ordering(ascending=False)}"
+
+    def _nulls_ordering(self, ascending: bool) -> str:
+        """
+        The ``NULLS FIRST``/``NULLS LAST`` suffix for an ``ORDER BY`` item.
+        Override for databases that do not support it.
+
+        :meta private:
+        """
+        return " NULLS FIRST" if ascending else " NULLS LAST"
+
+    def paging_clause(
+        self, top: Optional[int] = None, skip: Optional[int] = None
+    ) -> str:
+        """
+        The clause that applies OData's ``$top`` and ``$skip`` to a query,
+        which goes after the ``ORDER BY`` clause. Without an ``ORDER BY`` the
+        pages are not stable, and some databases refuse the clause.
+
+        Args:
+            top: Maximum number of rows to return.
+            skip: Number of rows to skip, before ``top`` is applied.
+        Returns:
+            The clause, or an empty string if both ``top`` and ``skip`` are
+            ``None``.
+        Raises:
+            InvalidQueryOptionException: If ``top`` or ``skip`` is not a
+                non-negative integer.
+        """
+        utils.validate_top_and_skip(top, skip)
+        if top is None and skip is None:
+            return ""
+
+        return self._paging(top, skip)
+
+    def _paging(self, top: Optional[int], skip: Optional[int]) -> str:
+        """
+        The dialect specific part of :meth:`paging_clause`, for when at least
+        one of ``top`` and ``skip`` is given.
+
+        :meta private:
+        """
+        clause = f"OFFSET {skip or 0} ROWS"
+        if top is not None:
+            clause += f" FETCH NEXT {top} ROWS ONLY"
+        return clause
 
     def visit_Attribute(self, node: ast.Attribute) -> str:
         ":meta private:"
