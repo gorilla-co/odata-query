@@ -28,3 +28,18 @@ class Comment(models.Model):
     blogpost = models.ForeignKey(
         BlogPost, on_delete=models.CASCADE, related_name="comments"
     )
+
+
+class Ticket(models.Model):
+    """
+    Has nullable fields, which the other models do not.
+    """
+
+    number = models.IntegerField()
+    title = models.CharField(max_length=128, null=True)
+    assignee = models.ForeignKey(
+        Author, null=True, on_delete=models.SET_NULL, related_name="tickets"
+    )
+
+    class Meta:
+        ordering = ["-number"]
