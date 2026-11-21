@@ -3,7 +3,9 @@ from typing import Callable, Type
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.dialects import mysql, postgresql
 
+from odata_query.exceptions import InvalidQueryOptionException
 from odata_query.sqlalchemy import apply_odata_core, apply_odata_query
 
 from .models import Author, Base, BlogPost, Comment
@@ -49,9 +51,6 @@ def apply_odata_query_bc_sqla1(*args, **kwargs):
         (Author, "name eq 'Baboon'", 1),
         (Author, "startswith(name, 'Gori')", 1),
         (BlogPost, "contains(content, 'How')", 2),
-        (BlogPost, "contains(content, 'How')$top=1", 1),
-        (BlogPost, "contains(content, 'How')$top=1$skip=1", 1),
-        (BlogPost, "contains(content, 'How')$top=1$skip=2", 0),
         (BlogPost, "published_at gt 2019-06-01", 1),
         (Author, "contains(blogposts/title, 'Monkey')", 2),
         (Author, "startswith(blogposts/comments/content, 'Cool')", 2),
@@ -150,3 +149,132 @@ def test_query_with_existing_join(apply_func, sample_data_sess):
 
     results = sample_data_sess.execute(q).scalars().all()
     assert len(results) == exp_results
+
+
+def _author_query(apply_func, session, odata_query, **options):
+    """
+    Authors ordered by name (Baboon, Gorilla, Saki), as a list of names.
+    """
+    if apply_func is apply_odata_query_bc_sqla1:
+        base_q = session.query(Author).order_by(Author.name)
+        return [a.name for a in apply_func(base_q, odata_query, **options).all()]
+
+    if apply_func is apply_odata_query:
+        base_q = select(Author).order_by(Author.name)
+        return [
+            a.name
+            for a in session.execute(apply_func(base_q, odata_query, **options))
+            .scalars()
+            .all()
+        ]
+
+    table = Author.__table__
+    base_q = select(table).order_by(table.c.name)
+    rows = session.execute(apply_func(base_q, odata_query, **options)).all()
+    return [r.name for r in rows]
+
+
+ALL_APPLY_FUNCS = pytest.mark.parametrize(
+    "apply_func",
+    [
+        pytest.param(apply_odata_query, id="ORM"),
+        pytest.param(apply_odata_query_bc_sqla1, id="ORM 1.x"),
+        pytest.param(apply_odata_core, id="Core"),
+    ],
+)
+
+
+@ALL_APPLY_FUNCS
+@pytest.mark.parametrize(
+    "odata_query, options, exp_names",
+    [
+        ("true eq true", {}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"top": 2}, ["Baboon", "Gorilla"]),
+        ("true eq true", {"skip": 1}, ["Gorilla", "Saki"]),
+        # Distinguishes a plain offset from `skip * top`, and from swapped args:
+        ("true eq true", {"top": 2, "skip": 1}, ["Gorilla", "Saki"]),
+        ("true eq true", {"top": 1, "skip": 2}, ["Saki"]),
+        # Boundaries:
+        ("true eq true", {"top": 0}, []),
+        ("true eq true", {"top": 0, "skip": 1}, []),
+        ("true eq true", {"skip": 0}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"top": 10}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"skip": 3}, []),
+        ("true eq true", {"top": 5, "skip": 10}, []),
+        # Paging applies to the filtered results:
+        ("name ne 'Baboon'", {"top": 1, "skip": 1}, ["Saki"]),
+        ("name eq 'Nobody'", {"top": 1, "skip": 1}, []),
+    ],
+)
+def test_top_and_skip(apply_func, odata_query, options, exp_names, sample_data_sess):
+    assert (
+        _author_query(apply_func, sample_data_sess, odata_query, **options) == exp_names
+    )
+
+
+@pytest.mark.parametrize(
+    "apply_func, base_q",
+    [
+        pytest.param(apply_odata_query, select(Author), id="ORM"),
+        pytest.param(apply_odata_core, select(Author.__table__), id="Core"),
+    ],
+)
+@pytest.mark.parametrize("options", [{"top": -1}, {"skip": -1}, {"top": "5"}])
+def test_invalid_top_and_skip_are_rejected_before_building_the_query(
+    apply_func, base_q, options
+):
+    with pytest.raises(InvalidQueryOptionException):
+        apply_func(base_q, "true eq true", **options)
+
+
+def test_top_and_skip_with_existing_join(sample_data_sess):
+    base_q = (
+        sample_data_sess.query(Comment)
+        .join(Author, Comment.author_id == Author.id)
+        .order_by(Comment.content)
+    )
+    q = apply_odata_query(base_q, "author/name ne 'Nobody'", top=1, skip=1)
+    assert [c.content for c in q.all()] == ["Dope!"]
+
+
+def test_top_and_skip_page_over_unique_rows_with_distinct(sample_data_sess):
+    gorilla = sample_data_sess.query(Author).filter_by(name="Gorilla").one()
+    blogpost = BlogPost(
+        title="Querying More", published_at=dt.datetime(2021, 1, 1), content="..."
+    )
+    sample_data_sess.add(blogpost)
+    blogpost.authors = [gorilla]
+    sample_data_sess.flush()
+    odata_query = "contains(blogposts/title, 'Querying')"
+
+    unique = apply_odata_query(select(Author).distinct(), odata_query, top=1)
+    duplicated = apply_odata_query(select(Author), odata_query, top=2)
+
+    assert [a.name for a in sample_data_sess.execute(unique).scalars()] == ["Gorilla"]
+    assert [a.name for a in sample_data_sess.execute(duplicated).scalars()] == [
+        "Gorilla",
+        "Gorilla",
+    ]
+
+
+@pytest.mark.parametrize(
+    "dialect, options, exp_suffix, exp_limit_and_offset",
+    [
+        (
+            postgresql,
+            {"top": 3, "skip": 2},
+            "LIMIT %(param_2)s OFFSET %(param_3)s",
+            [3, 2],
+        ),
+        (postgresql, {"skip": 2}, "LIMIT ALL OFFSET %(param_2)s", [2]),
+        (mysql, {"top": 3, "skip": 2}, "LIMIT %s, %s", [2, 3]),
+        (mysql, {"skip": 2}, "LIMIT %s, 18446744073709551615", [2]),
+    ],
+)
+def test_paging_is_valid_sql_for_dialect(
+    dialect, options, exp_suffix, exp_limit_and_offset
+):
+    q = apply_odata_query(select(Author), "name eq 'Gorilla'", **options)
+    compiled = q.compile(dialect=dialect.dialect())
+    assert str(compiled).endswith(exp_suffix)
+    assert list(compiled.params.values())[1:] == exp_limit_and_offset
