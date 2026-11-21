@@ -5,6 +5,7 @@ import pytest
 from django.db import models, transaction
 
 from odata_query.django import apply_odata_query
+from odata_query.exceptions import InvalidQueryOptionException
 
 from .models import Author, BlogPost, Comment
 
@@ -107,3 +108,59 @@ def test_odata_filter_to_sql_query(odata_query: str, expected_sql: str):
     queryset = q.distinct()
     sql = str(queryset.query)
     assert sql == expected_sql
+
+
+def _author_names(odata_query: str, **options) -> list:
+    """
+    Authors ordered by name (Baboon, Gorilla, Saki), as a list of names.
+    """
+    q = apply_odata_query(Author.objects.order_by("name"), odata_query, **options)
+    return [a.name for a in q]
+
+
+@pytest.mark.parametrize(
+    "odata_query, options, exp_names",
+    [
+        ("true eq true", {}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"top": 2}, ["Baboon", "Gorilla"]),
+        ("true eq true", {"skip": 1}, ["Gorilla", "Saki"]),
+        # Distinguishes a plain offset from `skip * top`, and from swapped args:
+        ("true eq true", {"top": 2, "skip": 1}, ["Gorilla", "Saki"]),
+        ("true eq true", {"top": 1, "skip": 2}, ["Saki"]),
+        # Boundaries:
+        ("true eq true", {"top": 0}, []),
+        ("true eq true", {"top": 0, "skip": 1}, []),
+        ("true eq true", {"skip": 0}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"top": 10}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"skip": 3}, []),
+        ("true eq true", {"top": 5, "skip": 10}, []),
+        # Paging applies to the filtered results, including annotated ones:
+        ("name ne 'Baboon'", {"top": 1, "skip": 1}, ["Saki"]),
+        ("name eq 'Nobody'", {"top": 1, "skip": 1}, []),
+        ("tolower(name) ne 'baboon'", {"top": 1, "skip": 1}, ["Saki"]),
+        ("contains(blogposts/title, 'Monkey')", {"top": 1, "skip": 1}, ["Saki"]),
+    ],
+)
+def test_top_and_skip(sample_data_sess, odata_query, options, exp_names):
+    assert _author_names(odata_query, **options) == exp_names
+
+
+@pytest.mark.parametrize("options", [{"top": -1}, {"skip": -1}, {"top": "5"}])
+def test_invalid_top_and_skip_are_rejected(options):
+    with pytest.raises(InvalidQueryOptionException):
+        apply_odata_query(Author.objects, "true eq true", **options)
+
+
+def test_top_and_skip_page_over_unique_rows_with_distinct(sample_data_sess):
+    gorilla = Author.objects.get(name="Gorilla")
+    blogpost = BlogPost.objects.create(
+        title="Querying More", published_at=dt.datetime(2021, 1, 1), content="..."
+    )
+    blogpost.authors.set([gorilla])
+    odata_query = "contains(blogposts/title, 'Querying')"
+
+    unique = apply_odata_query(Author.objects.distinct(), odata_query, top=1)
+    duplicated = apply_odata_query(Author.objects.all(), odata_query, top=2)
+
+    assert [a.name for a in unique] == ["Gorilla"]
+    assert [a.name for a in duplicated] == ["Gorilla", "Gorilla"]
