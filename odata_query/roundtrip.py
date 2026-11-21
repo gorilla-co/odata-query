@@ -198,6 +198,14 @@ class AstToODataVisitor(visitor.NodeVisitor):
             + ")"
         )
 
+    def visit_OrderByItem(self, node: ast.OrderByItem) -> str:
+        """:meta private:"""
+        return self.visit(node.expression) + ("" if node.ascending else " desc")
+
+    def visit_OrderBy(self, node: ast.OrderBy) -> str:
+        """:meta private:"""
+        return ", ".join(self.visit(item) for item in node.items)
+
     def _visit_and_paren_if_precedence_lower(
         self, node: ast._Node, precedence: Type[ast._Node]
     ) -> str:

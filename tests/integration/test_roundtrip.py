@@ -1,5 +1,6 @@
 import pytest
 
+from odata_query.grammar import parse_orderby
 from odata_query.roundtrip import AstToODataVisitor
 
 
@@ -91,3 +92,32 @@ def test_odata_filter_roundtrip(odata_query: str, lexer, parser):
     res = transformer.visit(ast)
 
     assert res == odata_query
+
+
+@pytest.mark.parametrize(
+    "odata_orderby",
+    [
+        "name",
+        "name desc",
+        "name, id desc",
+        "author/name desc, id",
+        "tolower(name) desc",
+        "concat(first, last) desc, id",
+        "name eq asc",
+        "id add 1 desc",
+        "id in (1, 2) desc, name",
+        "authors/any(a: a/name eq 'x') desc, id",
+        "not active desc",
+        "my_app.name desc",
+    ],
+)
+def test_odata_orderby_roundtrip(odata_orderby: str):
+    res = AstToODataVisitor().visit(parse_orderby(odata_orderby))
+
+    assert res == odata_orderby
+
+
+def test_odata_orderby_roundtrip_normalizes_explicit_asc():
+    res = AstToODataVisitor().visit(parse_orderby("name  ASC ,id DESC"))
+
+    assert res == "name, id desc"

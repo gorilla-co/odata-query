@@ -379,3 +379,17 @@ class CollectionLambda(_Node):
     owner: _Node
     operator: _CollectionOperator
     lambda_: Optional[Lambda]
+
+
+###############################################################################
+# Query options
+###############################################################################
+@dataclass(frozen=True)
+class OrderByItem(_Node):
+    expression: _Node
+    ascending: bool = True
+
+
+@dataclass(frozen=True)
+class OrderBy(_Node):
+    items: ListType[OrderByItem]
