@@ -55,6 +55,17 @@ class InvalidQueryOptionException(ODataException):
         )
 
 
+class InvalidOrderByException(ODataException):
+    """
+    Thrown when ``orderby`` refers to something that cannot be sorted on, such
+    as a collection or a related entity instead of a primitive value.
+    """
+
+    def __init__(self, field_name: str, reason: str):
+        self.field_name = field_name
+        super().__init__(f"Cannot order by '{field_name}': {reason}.")
+
+
 class FunctionCallException(ODataException):
     """
     Base class for errors in function calls.

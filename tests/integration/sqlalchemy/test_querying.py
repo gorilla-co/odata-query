@@ -3,10 +3,16 @@ from typing import Callable, Type
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.dialects import mysql, postgresql
+from sqlalchemy.dialects import mssql, mysql, oracle, postgresql, sqlite
 
-from odata_query.exceptions import InvalidQueryOptionException
+from odata_query.exceptions import (
+    InvalidFieldException,
+    InvalidOrderByException,
+    InvalidQueryOptionException,
+    ParsingException,
+)
 from odata_query.sqlalchemy import apply_odata_core, apply_odata_query
+from odata_query.sqlalchemy.ordering_ext import SpecOrdering
 
 from .models import Author, Base, BlogPost, Comment
 
@@ -225,6 +231,51 @@ ALL_APPLY_FUNCS = pytest.mark.parametrize(
         # Paging applies to the filtered results:
         ("name ne 'Baboon'", {"top": 1, "skip": 1}, ["Saki"]),
         ("name eq 'Nobody'", {"top": 1, "skip": 1}, []),
+        # Ordering overrides the ordering of the base query, and happens before paging:
+        ("true eq true", {"orderby": "name"}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"orderby": "name asc"}, ["Baboon", "Gorilla", "Saki"]),
+        ("true eq true", {"orderby": "name desc"}, ["Saki", "Gorilla", "Baboon"]),
+        ("true eq true", {"orderby": "id"}, ["Gorilla", "Baboon", "Saki"]),
+        ("true eq true", {"orderby": "id desc"}, ["Saki", "Baboon", "Gorilla"]),
+        (
+            "true eq true",
+            {"orderby": "length(name), name"},
+            ["Saki", "Baboon", "Gorilla"],
+        ),
+        (
+            "true eq true",
+            {"orderby": "length(name) desc"},
+            ["Gorilla", "Baboon", "Saki"],
+        ),
+        (
+            "true eq true",
+            {"orderby": "tolower(name) DESC"},
+            ["Saki", "Gorilla", "Baboon"],
+        ),
+        (
+            "true eq true",
+            {"orderby": "id mod 2 desc, name"},
+            ["Gorilla", "Saki", "Baboon"],
+        ),
+        (
+            "true eq true",
+            {"orderby": "id mod 2, name desc"},
+            ["Baboon", "Saki", "Gorilla"],
+        ),
+        ("true eq true", {"orderby": "name desc", "top": 2}, ["Saki", "Gorilla"]),
+        ("true eq true", {"orderby": "name desc", "skip": 1}, ["Gorilla", "Baboon"]),
+        (
+            "true eq true",
+            {"orderby": "name desc", "top": 1, "skip": 1},
+            ["Gorilla"],
+        ),
+        ("name ne 'Baboon'", {"orderby": "name desc"}, ["Saki", "Gorilla"]),
+        (
+            "name ne 'Baboon'",
+            {"orderby": "name desc", "top": 1, "skip": 1},
+            ["Gorilla"],
+        ),
+        ("name eq 'Nobody'", {"orderby": "name desc", "top": 1}, []),
     ],
 )
 def test_top_and_skip(apply_func, odata_query, options, exp_names, sample_data_sess):
@@ -240,12 +291,35 @@ def test_top_and_skip(apply_func, odata_query, options, exp_names, sample_data_s
         pytest.param(apply_odata_core, select(Author.__table__), id="Core"),
     ],
 )
-@pytest.mark.parametrize("options", [{"top": -1}, {"skip": -1}, {"top": "5"}])
-def test_invalid_top_and_skip_are_rejected_before_building_the_query(
-    apply_func, base_q, options
+@pytest.mark.parametrize(
+    "options, expected_exception",
+    [
+        ({"top": -1}, InvalidQueryOptionException),
+        ({"skip": -1}, InvalidQueryOptionException),
+        ({"top": "5"}, InvalidQueryOptionException),
+        ({"orderby": ""}, ParsingException),
+        ({"orderby": "name desc desc"}, ParsingException),
+        ({"orderby": "name,"}, ParsingException),
+        ({"orderby": "nonexistent"}, InvalidFieldException),
+        ({"orderby": "name, nonexistent desc"}, InvalidFieldException),
+    ],
+)
+def test_invalid_options_are_rejected_before_building_the_query(
+    apply_func, base_q, options, expected_exception
 ):
-    with pytest.raises(InvalidQueryOptionException):
+    with pytest.raises(expected_exception):
         apply_func(base_q, "true eq true", **options)
+
+
+def test_top_and_skip_replace_a_limit_and_offset_already_on_the_query(
+    sample_data_sess,
+):
+    base_q = select(Author).order_by(Author.name).limit(1).offset(2)
+
+    q = apply_odata_query(base_q, "true eq true", top=2, skip=1)
+
+    result = sample_data_sess.execute(q).scalars().all()
+    assert [a.name for a in result] == ["Gorilla", "Saki"]
 
 
 def test_top_and_skip_with_existing_join(sample_data_sess):
@@ -299,3 +373,257 @@ def test_paging_is_valid_sql_for_dialect(
     compiled = q.compile(dialect=dialect.dialect())
     assert str(compiled).endswith(exp_suffix)
     assert list(compiled.params.values())[1:] == exp_limit_and_offset
+
+
+@pytest.fixture
+def comments_sess(sample_data_sess):
+    """
+    Adds a comment without author or content, and a second 'Cool!' comment,
+    to the sample data. Comments by id: 1 'Dope!' (Baboon), 2 'Cool!' (Gorilla),
+    3 None (no author), 4 'Cool!' (Saki). Comments 1, 3 and 4 are on blogpost
+    'Querying Data'.
+    """
+    saki = sample_data_sess.query(Author).filter_by(name="Saki").one()
+    blogpost = sample_data_sess.query(BlogPost).filter_by(title="Querying Data").one()
+    sample_data_sess.add_all(
+        [
+            Comment(content=None, blogpost=blogpost),
+            Comment(content="Cool!", author=saki, blogpost=blogpost),
+        ]
+    )
+    sample_data_sess.flush()
+    return sample_data_sess
+
+
+def _comments(apply_func, session, odata_query, base_order_by=None, **options):
+    """
+    Comments as a list of ``(id, content)`` tuples.
+    """
+    model = Comment if apply_func is not apply_odata_core else Comment.__table__
+    if apply_func is apply_odata_query_bc_sqla1:
+        base_q = session.query(Comment)
+        if base_order_by is not None:
+            base_q = base_q.order_by(base_order_by(Comment))
+        rows = apply_func(base_q, odata_query, **options).all()
+    else:
+        base_q = select(model)
+        if base_order_by is not None:
+            base_q = base_q.order_by(base_order_by(model))
+        q = apply_func(base_q, odata_query, **options)
+        rows = session.execute(q).scalars().all() if model is Comment else None
+        if rows is None:
+            rows = session.execute(q).all()
+    return [(r.id, r.content) for r in rows]
+
+
+@ALL_APPLY_FUNCS
+@pytest.mark.parametrize(
+    "orderby, exp_ids",
+    [
+        # NULL sorts first when ascending, last when descending:
+        ("content", [3, 2, 4, 1]),
+        ("content asc", [3, 2, 4, 1]),
+        ("content desc", [1, 2, 4, 3]),
+        # Ties are broken by the next item:
+        ("content, id desc", [3, 4, 2, 1]),
+        ("content desc, id desc", [1, 4, 2, 3]),
+        ("content, id", [3, 2, 4, 1]),
+        ("id desc", [4, 3, 2, 1]),
+        # Expressions can contain NULL too:
+        ("length(content), id", [3, 1, 2, 4]),
+        ("tolower(content) desc, id desc", [1, 4, 2, 3]),
+        ("content eq 'Cool!' desc, id", [2, 4, 1, 3]),
+        ("content eq 'Cool!', id desc", [3, 1, 4, 2]),
+        # A foreign key is a value, and can be NULL:
+        ("author_id desc", [4, 1, 2, 3]),
+    ],
+)
+def test_orderby_on_sample_comments(apply_func, orderby, exp_ids, comments_sess):
+    result = _comments(apply_func, comments_sess, "true eq true", orderby=orderby)
+    assert [id_ for id_, _ in result] == exp_ids
+
+
+@ALL_APPLY_FUNCS
+def test_orderby_comes_before_ordering_that_is_already_on_the_query(
+    apply_func, comments_sess
+):
+    result = _comments(
+        apply_func,
+        comments_sess,
+        "true eq true",
+        base_order_by=lambda model: (
+            model.id if hasattr(model, "id") else model.c.id
+        ).desc(),
+        orderby="content",
+    )
+    # The two 'Cool!' comments tie on content, so the base ordering decides:
+    assert [id_ for id_, _ in result] == [3, 4, 2, 1]
+
+
+@ALL_APPLY_FUNCS
+def test_orderby_with_filter_top_and_skip(apply_func, comments_sess):
+    result = _comments(
+        apply_func,
+        comments_sess,
+        "id gt 1",
+        orderby="content desc, id",
+        top=2,
+        skip=1,
+    )
+    assert [id_ for id_, _ in result] == [4, 3]
+
+
+@pytest.mark.parametrize(
+    "apply_func",
+    [
+        pytest.param(apply_odata_query, id="ORM"),
+        pytest.param(apply_odata_query_bc_sqla1, id="ORM 1.x"),
+    ],
+)
+@pytest.mark.parametrize(
+    "odata_query, orderby, exp_ids",
+    [
+        # Comments without author are kept, and sort as NULL:
+        ("true eq true", "author/name", [3, 1, 2, 4]),
+        ("true eq true", "author/name desc", [4, 2, 1, 3]),
+        ("true eq true", "author/name desc, id desc", [4, 2, 1, 3]),
+        ("true eq true", "tolower(author/name) desc", [4, 2, 1, 3]),
+        ("true eq true", "author/name, content", [3, 1, 2, 4]),
+        ("true eq true", "content, author/name desc", [3, 4, 2, 1]),
+        ("true eq true", "author/name desc", [4, 2, 1, 3]),
+        # The relationship is only joined once when filter and ordering share it:
+        ("author/name ne 'Baboon'", "author/name desc", [4, 2]),
+        ("author/name ne 'Baboon'", "author/name", [2, 4]),
+        (
+            "author/name ne 'Baboon' or author/name eq 'Baboon'",
+            "author/name",
+            [1, 2, 4],
+        ),
+        # ... or when ordering uses it more than once:
+        ("true eq true", "author/name, author/id desc", [3, 1, 2, 4]),
+        # Different relationships can be combined:
+        ("true eq true", "blogpost/title, author/name desc", [2, 4, 1, 3]),
+    ],
+)
+def test_orderby_on_related_entities(
+    apply_func, odata_query, orderby, exp_ids, comments_sess
+):
+    result = _comments(apply_func, comments_sess, odata_query, orderby=orderby)
+    assert [id_ for id_, _ in result] == exp_ids
+
+
+def test_orderby_on_relationship_with_existing_join(comments_sess):
+    base_q = comments_sess.query(Comment).join(Author, Comment.author_id == Author.id)
+    q = apply_odata_query(base_q, "true eq true", orderby="author/name desc")
+    # The existing join is an inner join, so the comment without author is gone:
+    assert [c.id for c in q.all()] == [4, 2, 1]
+
+
+@pytest.mark.parametrize(
+    "model, orderby",
+    [
+        # A collection would repeat the root rows:
+        (Author, "blogposts/title"),
+        (Author, "blogposts/title desc"),
+        (Author, "name, comments/content"),
+        (Author, "length(blogposts/title)"),
+        (Comment, "author/blogposts/title"),
+        (BlogPost, "authors/name"),
+        # Entities are not values:
+        (Author, "blogposts"),
+        (Comment, "author"),
+        (Comment, "author desc"),
+        (Comment, "blogpost, id"),
+    ],
+)
+def test_orderby_on_collections_and_entities_is_rejected(model, orderby):
+    with pytest.raises(InvalidOrderByException):
+        apply_odata_query(select(model), "true eq true", orderby=orderby)
+
+
+def test_orderby_on_collection_names_the_collection():
+    with pytest.raises(InvalidOrderByException) as exc_info:
+        apply_odata_query(select(Author), "true eq true", orderby="blogposts/title")
+
+    assert exc_info.value.field_name == "blogposts"
+
+
+def test_failed_orderby_does_not_modify_the_query_that_was_passed_in():
+    base_q = select(Author)
+    with pytest.raises(InvalidOrderByException):
+        apply_odata_query(base_q, "true eq true", orderby="blogposts/title")
+
+    assert str(base_q) == str(select(Author))
+
+
+@pytest.mark.parametrize(
+    "dialect, exp_order_by",
+    [
+        (
+            postgresql,
+            "comment.content ASC NULLS FIRST, comment.id DESC, "
+            "lower(comment.content) DESC NULLS LAST",
+        ),
+        (
+            oracle,
+            '"comment".content ASC NULLS FIRST, "comment".id DESC, '
+            'lower("comment".content) DESC NULLS LAST',
+        ),
+        # NULL is smaller than any value here, which is the OData order already:
+        (
+            mysql,
+            "comment.content ASC, comment.id DESC, lower(comment.content) DESC",
+        ),
+        (
+            sqlite,
+            "comment.content ASC, comment.id DESC, lower(comment.content) DESC",
+        ),
+        (
+            mssql,
+            "comment.content ASC, comment.id DESC, lower(comment.content) DESC",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "apply_func, base_q",
+    [
+        pytest.param(apply_odata_query, select(Comment), id="ORM"),
+        pytest.param(apply_odata_core, select(Comment.__table__), id="Core"),
+    ],
+)
+def test_orderby_null_ordering_in_sql_of_dialect(
+    apply_func, base_q, dialect, exp_order_by
+):
+    q = apply_func(
+        base_q, "true eq true", orderby="content, id desc, tolower(content) desc"
+    )
+    sql = str(q.compile(dialect=dialect.dialect()))
+
+    assert sql.split("ORDER BY")[1].strip() == exp_order_by
+
+
+def test_orderby_does_not_ask_for_null_ordering_of_columns_that_are_not_nullable():
+    q = apply_odata_query(select(Author), "true eq true", orderby="id, name desc")
+    sql = str(q.compile(dialect=postgresql.dialect()))
+
+    assert sql.split("ORDER BY")[1].strip() == "author.id ASC, author.name DESC"
+
+
+def test_orderby_asks_for_null_ordering_of_columns_that_are_null_in_a_missing_relationship():
+    q = apply_odata_query(
+        select(Comment), "true eq true", orderby="author/name desc, id"
+    )
+    sql = str(q.compile(dialect=postgresql.dialect()))
+
+    # author.name is not nullable, but there is no author for some comments:
+    assert (
+        sql.split("ORDER BY")[1].strip()
+        == "author.name DESC NULLS LAST, comment.id ASC"
+    )
+
+
+def test_orderby_statements_that_differ_in_null_ordering_do_not_share_a_cache_key():
+    may_be_null = SpecOrdering(Comment.__table__.c.id, True, may_be_null=True)
+    cannot_be_null = SpecOrdering(Comment.__table__.c.id, True, may_be_null=False)
+
+    assert may_be_null._generate_cache_key() != cannot_be_null._generate_cache_key()
