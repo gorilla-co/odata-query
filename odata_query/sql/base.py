@@ -29,6 +29,18 @@ class AstToSqlVisitor(visitor.NodeVisitor):
 
         return sql_id
 
+    def visit_Attribute(self, node: ast.Attribute) -> str:
+        ":meta private:"
+        raise NotImplementedError(
+            "Relationship traversal is not implemented for the raw SQL visitors."
+        )
+
+    def visit_CollectionLambda(self, node: ast.CollectionLambda) -> str:
+        ":meta private:"
+        raise NotImplementedError(
+            "Collection lambda is not implemented for the raw SQL visitors."
+        )
+
     def visit_Null(self, node: ast.Null) -> str:
         ":meta private:"
         return "NULL"
