@@ -1,10 +1,13 @@
 import operator
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Type, Union
 
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models import (
+    BooleanField,
     Case,
     Exists,
+    ExpressionWrapper,
     F,
     Model,
     OuterRef,
@@ -14,7 +17,7 @@ from django.db.models import (
     functions,
     lookups,
 )
-from django.db.models.expressions import Expression
+from django.db.models.expressions import Expression, OrderBy
 
 try:
     # Django gis requires system level libraries, which not every user needs.
@@ -68,7 +71,7 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         res = super().visit(node)
         self._depth -= 1
 
-        if self._depth == 0:
+        if self._depth == 0 and not isinstance(node, (ast.OrderBy, ast.OrderByItem)):
             res = self._ensure_q(res)
 
         return res
@@ -193,6 +196,26 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
     def visit_In(self, node: ast.In) -> Type[lookups.Lookup]:
         ":meta private:"
         return lookups.In
+
+    def visit_OrderBy(self, node: ast.OrderBy) -> List[OrderBy]:
+        ":meta private:"
+        return [self.visit(item) for item in node.items]
+
+    def visit_OrderByItem(self, node: ast.OrderByItem) -> OrderBy:
+        ":meta private:"
+        expression = self.visit(node.expression)
+        self._check_sortable(expression)
+
+        if isinstance(expression, Q):
+            expression = ExpressionWrapper(expression, output_field=BooleanField())
+
+        # OData sorts NULL first when ascending and last when descending.
+        # Explicit NULL ordering can keep a database from using an index, so
+        # it is skipped for fields that can never be NULL.
+        may_be_null = not self._is_non_nullable_root_field(expression)
+        if node.ascending:
+            return expression.asc(nulls_first=may_be_null or None)
+        return expression.desc(nulls_last=may_be_null or None)
 
     def visit_Compare(self, node: ast.Compare) -> lookups.Lookup:
         ":meta private:"
@@ -447,6 +470,59 @@ class AstToDjangoQVisitor(visitor.NodeVisitor):
         typing.typecheck(substr, ast.String, "substring")
 
         return django_func(self.visit(field), self.visit(substr))
+
+    def _check_sortable(self, expression: Any) -> None:
+        """
+        OData only allows sorting on values. A collection would repeat the root
+        rows, and an entity has no order of its own.
+
+        :meta private:
+        """
+        for path in self._referenced_field_paths(expression):
+            model = self.root_model
+            parts = path.split("__")
+            for i, part in enumerate(parts):
+                try:
+                    field = model._meta.get_field(part)
+                except FieldDoesNotExist:
+                    break  # A lookup or transform, or an unknown field.
+
+                if field.one_to_many or field.many_to_many:
+                    raise ex.InvalidOrderByException(part, "it is a collection")
+                if not field.is_relation:
+                    break
+                # `author_id` is the value of the key, `author` the entity itself.
+                is_entity = part == field.name
+                if is_entity and i == len(parts) - 1 and isinstance(expression, F):
+                    raise ex.InvalidOrderByException(part, "it is not a value")
+                model = field.related_model
+
+    def _referenced_field_paths(self, expression: Any) -> Iterator[str]:
+        ":meta private:"
+        if isinstance(expression, F):
+            yield expression.name
+        elif isinstance(expression, Q):
+            for child in expression.children:
+                if isinstance(child, tuple):
+                    yield child[0]
+                else:
+                    yield from self._referenced_field_paths(child)
+        elif isinstance(expression, Exists):
+            return  # A subquery with its own scope.
+        elif hasattr(expression, "get_source_expressions"):
+            for source in expression.get_source_expressions():
+                yield from self._referenced_field_paths(source)
+
+    def _is_non_nullable_root_field(self, expression: Any) -> bool:
+        ":meta private:"
+        if not isinstance(expression, F) or "__" in expression.name:
+            return False
+
+        try:
+            field = self.root_model._meta.get_field(expression.name)
+        except FieldDoesNotExist:
+            return False
+        return not field.null
 
     def _ensure_q(self, node: Any) -> Q:
         """
