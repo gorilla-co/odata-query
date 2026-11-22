@@ -14,6 +14,12 @@ OData-Query
 convert them to other forms such as `Django Queries`_, `SQLAlchemy Queries`_,
 or just plain SQL.
 
+* Django (including GeoDjango ``geo.*`` functions), SQLAlchemy Core and ORM,
+  and raw SQL for generic databases, SQLite and Athena.
+* Supports ``$filter``, ``$orderby``, ``$top`` and ``$skip``.
+* Parses to an AST that you can inspect, rewrite and turn into your own target
+  with visitors.
+
 
 Installation
 ------------
@@ -126,7 +132,7 @@ Licensed under the MIT License.
 
 
 .. _odata v4: https://www.odata.org/
-.. _django queries: https://docs.djangoproject.com/en/3.2/topics/db/queries/
+.. _django queries: https://docs.djangoproject.com/en/stable/topics/db/queries/
 .. _sqlalchemy queries: https://docs.sqlalchemy.org/en/14/orm/loading_objects.html
 .. _documentation: https://odata-query.readthedocs.io/en/latest
 .. _Gorillini NV: https://gorilla.co/
