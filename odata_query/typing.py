@@ -98,6 +98,7 @@ def infer_return_type(node: ast.Call) -> Optional[Type[ast._Node]]:
         "ceiling",
         "floor",
         "round",
+        "aboutequal",
         "geo.distance",
         "geo.length",
     ):
